@@ -1,2 +1,2 @@
-import compile
-import ikfast
+from . import compile
+from . import ikfast

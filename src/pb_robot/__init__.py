@@ -1,14 +1,14 @@
-import utils
-import body
-import planning
-import transformations
-import placements
-import grasp
-import vobj
-import viz
-import collisions
-import panda
-import yumi
+from . import utils
+from . import body
+from . import planning
+from . import transformations
+from . import placements
+from . import grasp
+from . import vobj
+from . import viz
+from . import collisions
+from . import panda
+from . import yumi
 
 import tsrs
 import planners

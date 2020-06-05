@@ -2,8 +2,8 @@ from collections import defaultdict, deque, namedtuple
 import itertools
 import pybullet as p
 import pb_robot
-from .joint import Joint
-from .link import Link
+from pb_robot.joint import Joint
+from pb_robot.link import Link
 
 CLIENT = 0
 
@@ -36,9 +36,9 @@ class Body(object):
                                                         'restitution', 'rolling_friction', 'spinning_friction',
                                                         'contact_damping', 'contact_stiffness'])
         self.num_joints = p.getNumJoints(self.id, physicsClientId=CLIENT)
-        self.joints = [Joint(self, j) for j in xrange(self.num_joints)]
+        self.joints = [Joint(self, j) for j in range(self.num_joints)]
         self.num_links = p.getNumJoints(self.id, physicsClientId=CLIENT)
-        self.links = [Link(self, l) for l in xrange(self.num_links)]
+        self.links = [Link(self, l) for l in range(self.num_links)]
         self.all_links = [Link(self, self.base_link)] + self.links
         # get_link_info = get_dynamics_info
         # joint id -> Joint Class is just self.joints[jointID]

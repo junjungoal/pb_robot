@@ -23,7 +23,7 @@ class Joint(object): # inherit what?
         return self.JointInfo(*p.getJointInfo(self.bodyID, self.jointID, physicsClientId=CLIENT))
 
     def get_joint_name(self):
-        return self.get_joint_info().jointName # .decode('UTF-8')
+        return self.get_joint_info().jointName.decode('UTF-8')
 
     def get_joint_state(self):
         return self.JointState(*p.getJointState(self.bodyID, self.jointID, physicsClientId=CLIENT))

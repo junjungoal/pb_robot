@@ -4,7 +4,7 @@
 '''Snap Planner between two configurations. Straight line in configuration space'''
 
 import numpy
-import util
+from . import util
 
 class SnapPlanner(object):
     '''Snap Planner - maintaining class structure because may be useful later when all formatting'''
@@ -28,7 +28,7 @@ class SnapPlanner(object):
         count = int(cdist / 0.1) # Check every 0.1 distance (a little arbitrary)
 
         # linearly interpolate between that at some step size and check all those points
-        interp = [numpy.linspace(start_q[i], goal_q[i], count+1).tolist() for i in xrange(len(start_q))]
+        interp = [numpy.linspace(start_q[i], goal_q[i], count+1).tolist() for i in range(len(start_q))]
         middle_qs = numpy.transpose(interp)[1:-1] # Remove given points
         if not  all((manip.IsCollisionFree(m, obstacles=obstacles) for m in middle_qs)):
             return None

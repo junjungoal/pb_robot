@@ -1,2 +1,2 @@
-from birrt import BiRRTPlanner
-from snap import SnapPlanner
+from .birrt import BiRRTPlanner
+from .snap import SnapPlanner

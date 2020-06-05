@@ -2,7 +2,7 @@ import random
 import time
 from itertools import product, combinations
 from collections import namedtuple
-from crg_planners.rrt_connect import birrt, direct_path
+from .crg_planners.rrt_connect import birrt, direct_path
 
 import numpy as np
 import pybullet as p

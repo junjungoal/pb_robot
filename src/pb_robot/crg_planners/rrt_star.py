@@ -91,7 +91,7 @@ def rrt_star(start, goal, distance, sample, extend, collision, radius, max_time=
         if informed and goal_n is not None and distance(start, s) + distance(s, goal) >= goal_n.cost:
             continue
         if it % 100 == 0:
-            print it, time() - t0, goal_n is not None, do_goal, (goal_n.cost if goal_n is not None else INF)
+            print(it, time() - t0, goal_n is not None, do_goal, (goal_n.cost if goal_n is not None else INF))
         it += 1
 
         nearest = argmin(lambda n: distance(n.config, s), nodes)

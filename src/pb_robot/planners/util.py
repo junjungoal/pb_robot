@@ -71,7 +71,7 @@ def cspaceLength(path):
     @param path List of joint configurations 
     @return total_dist Scaler sum of distances'''
     total_dist = 0
-    for i in xrange(len(path)-1):
+    for i in range(len(path)-1):
         total_dist += numpy.linalg.norm(numpy.subtract(path[i+1], path[i]))
     return total_dist
 

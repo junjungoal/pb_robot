@@ -1,12 +1,12 @@
-import discrete
-import graph
-import lazy_prm
-import multi_rrt
-import prm
-import rrt
-import rrt_connect
-import rrt_star
-import smoothing
-import star_roadmap
-import utils
+from . import discrete
+from . import graph
+from . import lazy_prm
+from . import multi_rrt
+from . import prm
+from . import rrt
+from . import rrt_connect
+from .import rrt_star
+from . import smoothing
+from . import star_roadmap
+from . import utils
 

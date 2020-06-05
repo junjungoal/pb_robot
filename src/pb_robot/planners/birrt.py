@@ -8,8 +8,8 @@ import time
 from scipy import spatial
 import networkx as nx 
 import numpy
-import util
-from plannerTypes import GoalType, ConstraintType
+from . import util
+from .plannerTypes import GoalType, ConstraintType
 
 class BiRRTPlanner(object):
     '''My implementation of cbirrt, for now without constraining,
@@ -62,7 +62,7 @@ class BiRRTPlanner(object):
         @param goal_poses Set of end effector pose to plan to
         @return OpenRAVE joint trajectory or None if plan failed'''
         chains = []
-        for i in xrange(len(goal_poses)):
+        for i in range(len(goal_poses)):
             tsr_chain = util.CreateTSRFromPose(manip, goal_poses[i])
             chains.append(tsr_chain)
         return self.PlanToEndEffectorTSR(manip, start, chains, **kw_args)
@@ -144,9 +144,9 @@ class BiRRTPlanner(object):
                 q_rand = self.randomConfig()
                 qa_near = self.nearestNeighbor(Ta, q_rand)
                 (Ta, qa_reach) = self.constrainedExtend(Ta, qa_near, q_rand)
-                qb_near = self.nearestNeighbor(Tb, Ta.node[qa_reach]['config'])
-                (Tb, qb_reach) = self.constrainedExtend(Tb, qb_near, Ta.node[qa_reach]['config']) 
-                if numpy.array_equal(Ta.node[qa_reach]['config'], Tb.node[qb_reach]['config']):
+                qb_near = self.nearestNeighbor(Tb, Ta.nodes[qa_reach]['config'])
+                (Tb, qb_reach) = self.constrainedExtend(Tb, qb_near, Ta.nodes[qa_reach]['config']) 
+                if numpy.array_equal(Ta.nodes[qa_reach]['config'], Tb.nodes[qb_reach]['config']):
                     P = self.extractPath(Ta, qa_reach, Tb, qb_reach)
                     return (self.shortenPath(P), Ta, Tb)
                 else:
@@ -176,7 +176,7 @@ class BiRRTPlanner(object):
             return True
 
         # Grab all the relevant constraints
-        relevantConstraints = [self.constraints[i][0] for i in xrange(len(self.constraints)) if self.constraints[i][1] == constraintType]
+        relevantConstraints = [self.constraints[i][0] for i in range(len(self.constraints)) if self.constraints[i][1] == constraintType]
         
         # If there are no relevant constraints, also satified
         if len(relevantConstraints) == 0:
@@ -229,7 +229,7 @@ class BiRRTPlanner(object):
         @return Random configuration within joint limits'''
         (lower, upper) = self.manip.GetJointLimits()
         joint_values = numpy.zeros(len(lower))
-        for i in xrange(len(lower)):
+        for i in range(len(lower)):
             joint_values[i] = random.uniform(lower[i], upper[i])
         return joint_values
 
@@ -237,7 +237,7 @@ class BiRRTPlanner(object):
         '''Find nearest neighbor of q_rand in T using euclidean distance in
         joint space'''
         nodes = list(T.nodes())
-        tree_dists = [T.node[n]['config'] for n in nodes]
+        tree_dists = [T.nodes[n]['config'] for n in nodes]
         dists = spatial.distance.cdist(tree_dists, [q_rand], metric='euclidean')
         closest_q = nodes[numpy.argmin(dists)]
         return closest_q
@@ -250,15 +250,15 @@ class BiRRTPlanner(object):
         qs = q_near
         qs_old = q_near
         while True:
-            if numpy.array_equal(q_target, T.node[qs]['config']):
+            if numpy.array_equal(q_target, T.nodes[qs]['config']):
                 return (T, qs) # Reached target
-            elif numpy.linalg.norm(numpy.subtract(q_target, T.node[qs]['config'])) > numpy.linalg.norm(numpy.subtract(T.node[qs_old]['config'], q_target)):
+            elif numpy.linalg.norm(numpy.subtract(q_target, T.nodes[qs]['config'])) > numpy.linalg.norm(numpy.subtract(T.nodes[qs_old]['config'], q_target)):
                 return (T, qs_old) # Moved further away
 
             qs_old = qs
-            dist = numpy.linalg.norm(numpy.subtract(q_target, T.node[qs]['config']))
-            qs_config_proposed = T.node[qs]['config'] + min(self.QSTEP, dist)*(numpy.subtract(q_target, T.node[qs]['config']) / dist)
-            qs_config = self.approveNewNode(qs_config_proposed, T.node[qs]['config'])
+            dist = numpy.linalg.norm(numpy.subtract(q_target, T.nodes[qs]['config']))
+            qs_config_proposed = T.nodes[qs]['config'] + min(self.QSTEP, dist)*(numpy.subtract(q_target, T.nodes[qs]['config']) / dist)
+            qs_config = self.approveNewNode(qs_config_proposed, T.nodes[qs]['config'])
             if qs_config is not None:
                 qs = self.getNextIdx(T)
                 T.add_node(qs, config=qs_config)
@@ -292,7 +292,7 @@ class BiRRTPlanner(object):
         @param qs Joint configuration
         @param qs_new Joint configuration'''
         (lower, upper) = self.manip.GetJointLimits()
-        qs_new = [max(lower[i], min(qs[i], upper[i])) for i in xrange(len(lower))]
+        qs_new = [max(lower[i], min(qs[i], upper[i])) for i in range(len(lower))]
         return qs_new
 
     def checkEdgeCollision(self, q, q_parent):
@@ -306,7 +306,7 @@ class BiRRTPlanner(object):
         count = int(cdist / 0.1) # Check every 0.1 distance (a little arbitrary)
 
         # linearly interpolate between that at some step size and check all those points
-        interp = [numpy.linspace(q_parent[i], q[i], count+1).tolist() for i in xrange(len(q))]
+        interp = [numpy.linspace(q_parent[i], q[i], count+1).tolist() for i in range(len(q))]
         middle_qs = numpy.transpose(interp)[1:-1] # Remove given points
         return all((self.manip.IsCollisionFree(m, obstacles=self.obstacles) for m in middle_qs)) 
 
@@ -319,9 +319,9 @@ class BiRRTPlanner(object):
         @param qb_reach end point on second tree (node name)
         @return path Array of joint values representing the path'''
         a_pts = nx.shortest_path(Ta, source='0'+Ta.graph['name'][0], target=qa_reach)
-        a_distance = [Ta.node[x]['config'] for x in a_pts]
+        a_distance = [Ta.nodes[x]['config'] for x in a_pts]
         b_pts = nx.shortest_path(Tb, source='0'+Tb.graph['name'][0], target=qb_reach)
-        b_distance = [Tb.node[x]['config'] for x in b_pts] 
+        b_distance = [Tb.nodes[x]['config'] for x in b_pts] 
 
         if Ta.graph['name'] == 'start':
             path = a_distance + b_distance[::-1]
@@ -347,10 +347,10 @@ class BiRRTPlanner(object):
             j = random.randint(i, len(P)-1)
             Tshortcut.add_node('0p', config=P[i])
             (newT, qreach) = self.constrainedExtend(Tshortcut, '0p', P[j])
-            if numpy.array_equal(newT.node[qreach]['config'], P[j]):
+            if numpy.array_equal(newT.nodes[qreach]['config'], P[j]):
                 old_length = util.cspaceLength(P[i:j+1])
                 newNodePath = nx.shortest_path(newT, '0p', qreach)
-                newJointPath = [newT.node[x]['config'] for x in newNodePath]
+                newJointPath = [newT.nodes[x]['config'] for x in newNodePath]
                 new_length = util.cspaceLength(newJointPath)
                 if new_length < old_length:
                     P = numpy.vstack((P[0:i], newJointPath, P[j+1:]))
