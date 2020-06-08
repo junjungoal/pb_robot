@@ -34,7 +34,8 @@ class Body(object):
         self.DynamicsInfo = namedtuple('DynamicsInfo', ['mass', 'lateral_friction', 'local_inertia_diagonal', 
                                                         'local_inertial_pos', 'local_inertial_orn',
                                                         'restitution', 'rolling_friction', 'spinning_friction',
-                                                        'contact_damping', 'contact_stiffness'])
+                                                        'contact_damping', 'contact_stiffness', 'body_type',
+                                                        'collision_margin'])
         self.num_joints = p.getNumJoints(self.id, physicsClientId=CLIENT)
         self.joints = [Joint(self, j) for j in range(self.num_joints)]
         self.num_links = p.getNumJoints(self.id, physicsClientId=CLIENT)
@@ -84,6 +85,29 @@ class Body(object):
 
     def get_transform(self):
         return pb_robot.geometry.tform_from_pose(self.get_pose())
+    
+    # The next two methods use the center of geometry instead of the default center of mass.
+    def get_base_link_pose(self):
+        com_pose = self.get_pose()
+        dynamics = self.get_dynamics_info()
+        return p.multiplyTransforms(com_pose[0],
+                                    com_pose[1],
+                                    *p.invertTransform(dynamics.local_inertial_pos,
+                                                       dynamics.local_inertial_orn))
+
+    def set_base_link_pose(self, pose):
+        dynamics = self.get_dynamics_info()
+        (point, quat) = p.multiplyTransforms(pose[0],
+                                             pose[1],
+                                             dynamics.local_inertial_pos,
+                                             dynamics.local_inertial_orn)
+        p.resetBasePositionAndOrientation(self.id, point, quat, physicsClientId=CLIENT)
+
+    def get_dimensions(self):
+        collision_data = p.getCollisionShapeData(self.id,
+                                                 self.base_link)[0]
+        dimensions = collision_data[3]
+        return dimensions
 
     def get_point(self):
         return self.get_pose()[0]
@@ -101,11 +125,17 @@ class Body(object):
         (point, quat) = pose
         p.resetBasePositionAndOrientation(self.id, point, quat, physicsClientId=CLIENT)
 
+    def set_base_link_transform(self, transform):
+        self.set_base_link_pose(pb_robot.geometry.pose_from_tform(transform))
+
     def set_transform(self, transform):
         self.set_pose(pb_robot.geometry.pose_from_tform(transform))
 
     def set_point(self, point):
         self.set_pose((point, self.get_quat()))
+
+    def set_base_link_point(self, point):
+        self.set_base_link_pose((point, self.get_quat()))
 
     def set_quat(self, quat):
         self.set_pose((self.get_point(), quat))

@@ -84,7 +84,7 @@ class PandaArm(object):
                 obj = self.grabbedObjects[i]
                 grasp_objF = self.grabbedRelations[i]
                 obj_worldF = numpy.dot(hand_worldF, numpy.linalg.inv(grasp_objF))
-                obj.set_transform(obj_worldF)
+                obj.set_base_link_transform(obj_worldF)
 
     def GetJointLimits(self):
         '''Return the upper and lower joint position limits
