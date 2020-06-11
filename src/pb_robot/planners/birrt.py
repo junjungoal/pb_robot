@@ -111,6 +111,10 @@ class BiRRTPlanner(object):
         # Create two trees
         Ta = nx.Graph(name='start')
         Tb = nx.Graph(name='goal') 
+        if not self.manip.IsCollisionFree(start, obstacles=self.obstacles):
+            return None
+        if not self.manip.IsCollisionFree(goalLocation, obstacles=self.obstacles):
+            return None
       
         Ta.add_node('0s', config=start)
 

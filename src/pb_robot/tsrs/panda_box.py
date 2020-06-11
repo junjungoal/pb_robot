@@ -11,8 +11,9 @@ def grasp(box,
     @param box The box to grasp
     @param push_distance The distance to push before grasping
     """
+    dimensions = box.get_dimensions()
     ee_to_palm_distance = 0.098
-    lateral_offset = ee_to_palm_distance + push_distance
+    lateral_offset = ee_to_palm_distance + dimensions[0]/2
 
     p0_w = box.get_base_link_pose()
     T0_w = pb_robot.geometry.tform_from_pose(p0_w)
@@ -29,7 +30,7 @@ def grasp(box,
                                [1., 0., 0., 0.0],
                                [0., 0., 0., 1.]])
     Bw_yz = numpy.zeros((6, 2))
-    Bw_yz[2, :] = [-0.1, 0]
+    Bw_yz[2, :] = [-dimensions[2]/2, dimensions[2]/2]
     front_tsr1 = TSR(T0_w=T0_w, Tw_e=Tw_e_front1, Bw=Bw_yz)
     grasp_chain_front1 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr1)
@@ -41,7 +42,7 @@ def grasp(box,
 
  
     # Top and Bottom sides 
-    vertical_offset = ee_to_palm_distance + box.get_dimensions()[2]/2
+    vertical_offset = ee_to_palm_distance + dimensions[2]/2
 
     Tw_e_side1 = numpy.array([[ 1., 0.,  0., 0.0],
                               [ 0.,-1.,  0., 0.0],
@@ -85,15 +86,15 @@ def grasp(box,
     # Two side faces
     Tw_e_bottom1 = numpy.array([[ 0., -1.,  0., 0.],
                                 [ 0.,  0., -1., lateral_offset],
-                                [ 1.,  0.,  0., 0.0],
+                                [ 1.,  0.,  0., 0.],
                                 [ 0.,  0.,  0., 1.]])
 
     Tw_e_bottom2 = numpy.array([[ 0.,  1.,  0., 0.],
                                 [ 0.,  0.,  1., -lateral_offset],
-                                [ 1.,  0.,  0., 0.0],
+                                [ 1.,  0.,  0., 0.],
                                 [ 0.,  0.,  0., 1.]])
     Bw_topbottom = numpy.zeros((6,2))
-    Bw_topbottom[2,:] = [-0.1, 0.0]
+    Bw_topbottom[2,:] = [dimensions[2]/2,dimensions[2]/2]
     bottom_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom1, Bw = Bw_topbottom)
     grasp_chain_bottom1 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr1)
