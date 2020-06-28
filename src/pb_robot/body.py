@@ -1,5 +1,6 @@
 from collections import defaultdict, deque, namedtuple
 import itertools
+import numpy
 import pybullet as p
 import pb_robot
 from pb_robot.joint import Joint
@@ -52,6 +53,12 @@ class Body(object):
         self.all_links = [Link(self, self.base_link)] + self.links
         # get_link_info = get_dynamics_info
         # joint id -> Joint Class is just self.joints[jointID]
+
+        # We manually maintain the kinematic tree of grasped objects by
+        # keeping track of a dictionary of the objects and their relations
+        # to the arm (normally the grasp matrix)
+        self.grabbedRelations = dict()
+        self.grabbedObjects = dict()
 
         if path is not None:
             self.readableName = ((path.split('/')[-1]).split('.'))[0]
@@ -137,6 +144,15 @@ class Body(object):
     def set_pose(self, pose):
         (point, quat) = pose
         p.resetBasePositionAndOrientation(self.id, point, quat, physicsClientId=CLIENT)
+        ##
+        # If exists grabbed object, update its position too
+        if len(self.grabbedObjects.keys()) > 0:
+            #hand_worldF = self.GetEETransform()
+            for i in self.grabbedObjects.keys():
+                obj = self.grabbedObjects[i]
+                grasp_objF = self.grabbedRelations[i]
+                obj_worldF = numpy.dot(self.get_transform(), numpy.linalg.inv(grasp_objF))
+                obj.set_transform(obj_worldF)
 
     def set_base_link_transform(self, transform):
         self.set_base_link_pose(pb_robot.geometry.pose_from_tform(transform))
@@ -415,6 +431,21 @@ class Body(object):
         except ValueError:
             print("Friction Not Set, defaulting to zero")
             return 0 
+
+    def Grab(self, obj, relation):
+        '''Attach an object to the robot by storing the object and 
+        its relative location to the robot arm. Now if we set
+        the arm position, the object will move accordingly
+        @param obj The object to be grabbed
+        @param relation Transform of object relative to robot'''
+        self.grabbedRelations[obj.get_name()] = relation
+        self.grabbedObjects[obj.get_name()] = obj
+
+    def Release(self, obj):
+        '''Dettach an object by removing it from the grabbed object lists
+        @param obj The object to be released'''
+        self.grabbedObjects.pop(obj.get_name(), None)
+        self.grabbedRelations.pop(obj.get_name(), None)
 
     def dump_body(self):
         print('Body id: {} | Name: {} | Rigid: {} | Fixed: {}'.format(
