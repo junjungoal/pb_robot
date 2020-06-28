@@ -374,7 +374,7 @@ def connect(use_gui=True, shadows=True):
     with helper.HideOutput():
         # options="--width=1024 --height=768"
         #  --window_backend=2 --render_device=0'
-        sim_id = p.connect(method)
+        sim_id = p.connect(method, options='--background_color_red=1.0 --background_color_green=1.0 --background_color_blue=1.0')
         #sim_id = p.connect(p.GUI, options="--opengl2") if use_gui else p.connect(p.DIRECT)
     assert 0 <= sim_id 
     #sim_id2 = p.connect(p.SHARED_MEMORY)
