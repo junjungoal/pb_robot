@@ -9,6 +9,7 @@
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/hand.dae"/>
       </geometry>
+      <material name="panda_darkgrey"/>
     </visual>
     <collision>
       <geometry>
@@ -21,6 +22,7 @@
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
       </geometry>
+      <material name="panda_grey"/>
     </visual>
     <collision>
       <geometry>
@@ -34,6 +36,7 @@
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
       </geometry>
+      <material name="panda_grey"/>
     </visual>
     <collision>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
@@ -64,4 +67,10 @@
     <parent link="panda_hand"/>
     <child link="tool_link"/>
   </joint>
+  <material name="panda_darkgrey">
+    <color rgba="0.25. 0.25 0.25 1."/>
+  </material>
+  <material name="panda_grey">
+    <color rgba="0.5 0.5 0.5 1."/>
+  </material>
 </robot>

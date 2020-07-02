@@ -247,14 +247,23 @@ class PandaArm(object):
             self.SetJointValues(path[i])
             time.sleep(timestep)
                         
-class PandaHand(object):
+class PandaHand(pb_robot.body.Body):
     '''Set position commands for the panda hand. Have not yet included
     gripping with force.'''
-    def __init__(self, bodyID, left_finger_name, right_finger_name):
+    def __init__(self, bodyID=None, left_finger_name='panda_finger_joint1', right_finger_name='panda_finger_joint2'):
         '''Pull left and right fingers from robot's joint list'''
-        self.__robot = pb_robot.body.Body(bodyID)
-        self.left_finger = self.__robot.joint_from_name(left_finger_name)
-        self.right_finger = self.__robot.joint_from_name(right_finger_name)
+        if bodyID is None:
+            urdf_file = 'models/franka_description/robots/hand.urdf'
+            with pb_robot.helper.HideOutput():
+                with pb_robot.utils.LockRenderer():
+                    bodyID = pb_robot.utils.load_model(urdf_file, fixed_base=True)
+
+        #self.__robot = pb_robot.body.Body(bodyID)
+        #self.left_finger = self.__robot.joint_from_name(left_finger_name)
+        #self.right_finger = self.__robot.joint_from_name(right_finger_name)
+        pb_robot.body.Body.__init__(self, bodyID)
+        self.left_finger = self.joint_from_name(left_finger_name)
+        self.right_finger = self.joint_from_name(right_finger_name)
 
     def Open(self):
         '''Open the fingers by setting their positions to the upper limit'''
@@ -282,3 +291,9 @@ class PandaHand(object):
         @return tuple of left finger joint position and right finger 
                 joint position'''
         return (self.left_finger.get_joint_position(), self.right_finger.get_joint_position())
+
+    def GetEETransform(self):
+        '''Get the end effector transform
+        @return 4x4 transform of end effector in the world'''
+        eeFrame = self.__robot.link_from_name('panda_hand')
+        return pb_robot.geometry.tform_from_pose(eeFrame.get_link_pose())

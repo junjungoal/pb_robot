@@ -26,6 +26,23 @@ class BodyGrasp(object):
     def __repr__(self):
         return 'g{}'.format(id(self) % 1000)
 
+class ViseGrasp(object):
+    def __init__(self, body, grasp_objF, hand):
+        self.body = body
+        self.grasp_objF = grasp_objF #Tform
+        self.hand = pb_robot.panda.PandaHand(hand.id)
+    def simulate(self):
+        if self.body.get_name() in self.hand.grabbedObjects:
+            # Object grabbed, need to release
+            self.hand.Open()
+            self.hand.Release(self.body)
+        else:
+            # Object not grabbed, need to grab
+            self.hand.Close()
+            self.hand.Grab(self.body, self.grasp_objF)
+    def __repr__(self):
+        return 'vg{}'.format(id(self) % 1000)
+
 class BodyConf(object):
     def __init__(self, manip, configuration):
         self.manip = manip
