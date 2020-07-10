@@ -29,17 +29,37 @@ def grasp(box,
                                [0., -1., 0., 0.0],
                                [1., 0., 0., 0.0],
                                [0., 0., 0., 1.]])
+
+    Tw_e_front3 = numpy.array([[0., 0., -1., lateral_offset],
+                               [1., 0., 0., 0.0],
+                               [0., -1., 0., 0.0],
+                               [0., 0., 0., 1.]])
+
+    Tw_e_front4 = numpy.array([[0., 0., 1., -lateral_offset],
+                               [-1., 0., 0., 0.0],
+                               [0., -1., 0., 0.0],
+                               [0., 0., 0., 1.]])
     Bw_yz = numpy.zeros((6, 2))
-    Bw_yz[2, :] = [-dimensions[2]/2, dimensions[2]/2]
+    #Bw_yz[2, :] = [-dimensions[2]/2, dimensions[2]/2]
     front_tsr1 = TSR(T0_w=T0_w, Tw_e=Tw_e_front1, Bw=Bw_yz)
     grasp_chain_front1 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr1)
     chain_list += [grasp_chain_front1]
+
     front_tsr2 = TSR(T0_w=T0_w, Tw_e=Tw_e_front2, Bw=Bw_yz)
     grasp_chain_front2 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr2)
     chain_list += [ grasp_chain_front2 ]
 
+    front_tsr3 = TSR(T0_w=T0_w, Tw_e=Tw_e_front3, Bw=Bw_yz)
+    grasp_chain_front3 = TSRChain(sample_start=False, sample_goal=True,
+                                  constrain=False, TSR=front_tsr3)
+    chain_list += [grasp_chain_front3]
+
+    front_tsr4 = TSR(T0_w=T0_w, Tw_e=Tw_e_front4, Bw=Bw_yz)
+    grasp_chain_front4 = TSRChain(sample_start=False, sample_goal=True,
+                                  constrain=False, TSR=front_tsr4)
+    chain_list += [ grasp_chain_front4 ]
  
     # Top and Bottom sides 
     vertical_offset = ee_to_palm_distance + dimensions[2]/2
@@ -64,7 +84,8 @@ def grasp(box,
                               [ 0., 0., 1., -vertical_offset],
                               [ 0., 0., 0., 1.]])
     Bw_side = numpy.zeros((6,2))
-    Bw_side[1,:] = [-width_offset, width_offset]
+    # Bw_side[1,:] = [-width_offset, width_offset]
+    # Bw_side[1,:] = [-dimensions[1]/2, dimensions[1]/2]
     side_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_side1, Bw = Bw_side)
     grasp_chain_side1 = TSRChain(sample_start=False, sample_goal=True,
                                 constrain=False, TSR=side_tsr1)
@@ -84,6 +105,7 @@ def grasp(box,
 
 
     # Two side faces
+    lateral_offset = ee_to_palm_distance + dimensions[1]/2
     Tw_e_bottom1 = numpy.array([[ 0., -1.,  0., 0.],
                                 [ 0.,  0., -1., lateral_offset],
                                 [ 1.,  0.,  0., 0.],
@@ -93,8 +115,18 @@ def grasp(box,
                                 [ 0.,  0.,  1., -lateral_offset],
                                 [ 1.,  0.,  0., 0.],
                                 [ 0.,  0.,  0., 1.]])
+
+    Tw_e_bottom3 = numpy.array([[ -1., 0.,  0., 0.],
+                                [ 0.,  0., -1., lateral_offset],
+                                [ 0.,  -1.,  0., 0.],
+                                [ 0.,  0.,  0., 1.]])
+
+    Tw_e_bottom4 = numpy.array([[ 1.,  0.,  0., 0.],
+                                [ 0.,  0.,  1., -lateral_offset],
+                                [ 0.,  -1.,  0., 0.],
+                                [ 0.,  0.,  0., 1.]])
     Bw_topbottom = numpy.zeros((6,2))
-    Bw_topbottom[2,:] = [dimensions[2]/2,dimensions[2]/2]
+    #Bw_topbottom[2,:] = [-dimensions[2]/2,dimensions[2]/2]
     bottom_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom1, Bw = Bw_topbottom)
     grasp_chain_bottom1 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr1)
@@ -104,6 +136,16 @@ def grasp(box,
     grasp_chain_bottom2 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr2)
     chain_list += [ grasp_chain_bottom2 ]
+
+    bottom_tsr3 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom3, Bw = Bw_topbottom)
+    grasp_chain_bottom3 = TSRChain(sample_start=False, sample_goal=True,
+                                  constrain=False, TSR=bottom_tsr3)
+    chain_list += [ grasp_chain_bottom3 ]
+
+    bottom_tsr4 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom4, Bw = Bw_topbottom)
+    grasp_chain_bottom4 = TSRChain(sample_start=False, sample_goal=True,
+                                  constrain=False, TSR=bottom_tsr4)
+    chain_list += [ grasp_chain_bottom4 ]
 
     # Each chain in the list can also be rotated by 180 degrees around z
     rotated_chain_list = []
@@ -120,5 +162,4 @@ def grasp(box,
         tsr_chain_new = TSRChain(sample_start=False, sample_goal=True, constrain=False,
                                      TSR=tsr_new)
         rotated_chain_list += [ tsr_chain_new ]
-
     return chain_list + rotated_chain_list

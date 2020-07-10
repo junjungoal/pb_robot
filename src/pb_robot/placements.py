@@ -7,7 +7,7 @@ CIRCULAR_LIMITS = -PI, PI
 def stable_z_on_aabb(body, aabb):
     center, extent = pb_robot.aabb.get_center_extent(body)
     _, upper = aabb
-    return (upper + extent/2 + (body.get_point() - center))[2]
+    return (upper + extent/2 + (body.get_base_link_point() - center))[2]
 
 def stable_z(body, surface, surface_link=None):
     return stable_z_on_aabb(body, pb_robot.aabb.get_aabb(surface, link=surface_link))
@@ -24,26 +24,27 @@ def is_placement(body, surface, **kwargs):
     return is_placed_on_aabb(body, pb_robot.aabb.get_aabb(surface), **kwargs)
 
 def sample_placement_on_aabb(top_body, bottom_aabb, top_pose=pb_robot.geometry.unit_pose(),
-                             percent=1.0, max_attempts=50, epsilon=1e-3):
+                             percent=1.0, max_attempts=100, epsilon=1e-3):
     # TODO: transform into the coordinate system of the bottom
     # TODO: maybe I should instead just require that already in correct frame
-    start_pose = top_body.get_pose()
+    start_pose = top_body.get_base_link_pose()
     for _ in range(max_attempts):
-        theta = np.random.uniform(*CIRCULAR_LIMITS)
+        theta = 0  # np.random.uniform(*CIRCULAR_LIMITS)
         rotation = pb_robot.geometry.Euler(yaw=theta)
-        top_body.set_pose(pb_robot.geometry.multiply(pb_robot.geometry.Pose(euler=rotation), top_pose))
+        top_body.set_base_link_pose(pb_robot.geometry.multiply(pb_robot.geometry.Pose(euler=rotation), top_pose))
         center, extent = pb_robot.aabb.get_center_extent(top_body)
         lower = (np.array(bottom_aabb[0]) + percent*extent/2)[:2]
         upper = (np.array(bottom_aabb[1]) - percent*extent/2)[:2]
         if np.less(upper, lower).any():
             continue
-        x, y = np.random.uniform(lower, upper)
+        x, y = np.random.uniform(lower, upper)*0.5
         z = (bottom_aabb[1] + extent/2.)[2] + epsilon
-        point = np.array([x, y, z]) + (top_body.get_point() - center)
+        point = np.array([x, y, z]) + (top_body.get_base_link_point() - center)
         pose = pb_robot.geometry.multiply(pb_robot.geometry.Pose(point, rotation), top_pose)
-        top_body.set_pose(start_pose)
+        
+        top_body.set_base_link_pose(start_pose)
         return pose
-    top_body.set_pose(start_pose)
+    top_body.set_base_link_pose(start_pose)
     return None
 
 def sample_placement(top_body, bottom_body, bottom_link=None, **kwargs):

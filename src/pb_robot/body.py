@@ -86,6 +86,9 @@ class Body(object):
     def get_transform(self):
         return pb_robot.geometry.tform_from_pose(self.get_pose())
     
+    def get_base_link_transform(self):
+        return pb_robot.geometry.tform_from_pose(self.get_base_link_pose())
+
     # The next two methods use the center of geometry instead of the default center of mass.
     def get_base_link_pose(self):
         com_pose = self.get_pose()
@@ -133,6 +136,9 @@ class Body(object):
 
     def set_point(self, point):
         self.set_pose((point, self.get_quat()))
+
+    def get_base_link_point(self):
+        return self.get_base_link_pose()[0]
 
     def set_base_link_point(self, point):
         self.set_base_link_pose((point, self.get_quat()))
