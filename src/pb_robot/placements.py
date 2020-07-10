@@ -37,7 +37,7 @@ def sample_placement_on_aabb(top_body, bottom_aabb, top_pose=pb_robot.geometry.u
         upper = (np.array(bottom_aabb[1]) - percent*extent/2)[:2]
         if np.less(upper, lower).any():
             continue
-        x, y = np.random.uniform(lower, upper)*0.5
+        x, y = np.random.uniform(lower, upper)
         z = (bottom_aabb[1] + extent/2.)[2] + epsilon
         point = np.array([x, y, z]) + (top_body.get_base_link_point() - center)
         pose = pb_robot.geometry.multiply(pb_robot.geometry.Pose(point, rotation), top_pose)

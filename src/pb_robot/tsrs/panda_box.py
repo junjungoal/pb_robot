@@ -11,6 +11,8 @@ def grasp(box,
     @param box The box to grasp
     @param push_distance The distance to push before grasping
     """
+    gripper_width = 0.05  # TODO: Verify this number.
+
     dimensions = box.get_dimensions()
     ee_to_palm_distance = 0.098
     lateral_offset = ee_to_palm_distance + dimensions[0]/2
@@ -44,22 +46,23 @@ def grasp(box,
     front_tsr1 = TSR(T0_w=T0_w, Tw_e=Tw_e_front1, Bw=Bw_yz)
     grasp_chain_front1 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr1)
-    chain_list += [grasp_chain_front1]
 
     front_tsr2 = TSR(T0_w=T0_w, Tw_e=Tw_e_front2, Bw=Bw_yz)
     grasp_chain_front2 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr2)
-    chain_list += [ grasp_chain_front2 ]
 
     front_tsr3 = TSR(T0_w=T0_w, Tw_e=Tw_e_front3, Bw=Bw_yz)
     grasp_chain_front3 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr3)
-    chain_list += [grasp_chain_front3]
 
     front_tsr4 = TSR(T0_w=T0_w, Tw_e=Tw_e_front4, Bw=Bw_yz)
     grasp_chain_front4 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=front_tsr4)
-    chain_list += [ grasp_chain_front4 ]
+
+    if dimensions[1] < gripper_width:
+        chain_list += [grasp_chain_front1, grasp_chain_front2]
+    if dimensions[2] < gripper_width:
+        chain_list += [grasp_chain_front3, grasp_chain_front4]
  
     # Top and Bottom sides 
     vertical_offset = ee_to_palm_distance + dimensions[2]/2
@@ -89,20 +92,22 @@ def grasp(box,
     side_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_side1, Bw = Bw_side)
     grasp_chain_side1 = TSRChain(sample_start=False, sample_goal=True,
                                 constrain=False, TSR=side_tsr1)
-    chain_list += [ grasp_chain_side1 ]
+
     side_tsr2 = TSR(T0_w = T0_w, Tw_e = Tw_e_side2, Bw = Bw_side)
     grasp_chain_side2 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=side_tsr2)
-    chain_list += [ grasp_chain_side2 ] 
     side_tsr3 = TSR(T0_w = T0_w, Tw_e = Tw_e_side3, Bw = Bw_side)
     grasp_chain_side3 = TSRChain(sample_start=False, sample_goal=True,
                                 constrain=False, TSR=side_tsr3)
-    chain_list += [ grasp_chain_side3 ]
     side_tsr4 = TSR(T0_w = T0_w, Tw_e = Tw_e_side4, Bw = Bw_side)
     grasp_chain_side4 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=side_tsr4)
-    chain_list += [ grasp_chain_side4 ] 
 
+    if dimensions[1] < gripper_width:
+        chain_list += [grasp_chain_side1, grasp_chain_side2]
+
+    if dimensions[0] < gripper_width:
+        chain_list += [grasp_chain_side3, grasp_chain_side4]
 
     # Two side faces
     lateral_offset = ee_to_palm_distance + dimensions[1]/2
@@ -130,22 +135,24 @@ def grasp(box,
     bottom_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom1, Bw = Bw_topbottom)
     grasp_chain_bottom1 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr1)
-    chain_list += [ grasp_chain_bottom1 ]
 
     bottom_tsr2 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom2, Bw = Bw_topbottom)
     grasp_chain_bottom2 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr2)
-    chain_list += [ grasp_chain_bottom2 ]
 
     bottom_tsr3 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom3, Bw = Bw_topbottom)
     grasp_chain_bottom3 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr3)
-    chain_list += [ grasp_chain_bottom3 ]
 
     bottom_tsr4 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom4, Bw = Bw_topbottom)
     grasp_chain_bottom4 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr4)
-    chain_list += [ grasp_chain_bottom4 ]
+
+    if dimensions[0] < gripper_width:
+        chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
+
+    if dimensions[2] < gripper_width:
+        chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
 
     # Each chain in the list can also be rotated by 180 degrees around z
     rotated_chain_list = []
