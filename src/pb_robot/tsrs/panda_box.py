@@ -86,6 +86,7 @@ def grasp(box,
                               [-1., 0., 0., 0.0],
                               [ 0., 0., 1., -vertical_offset],
                               [ 0., 0., 0., 1.]])
+
     Bw_side = numpy.zeros((6,2))
     # Bw_side[1,:] = [-width_offset, width_offset]
     # Bw_side[1,:] = [-dimensions[1]/2, dimensions[1]/2]
@@ -130,6 +131,17 @@ def grasp(box,
                                 [ 0.,  0.,  1., -lateral_offset],
                                 [ 0.,  -1.,  0., 0.],
                                 [ 0.,  0.,  0., 1.]])
+
+    # TODO: Example for grasping at a 45 degree angle.
+    # rot_y45 = pb_robot.geometry.Euler(pitch=-numpy.pi/4)
+    # rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
+    # d = ee_to_palm_distance*numpy.sqrt(2)
+    # Tw_e_bottom1 = numpy.array([[ 0., -1.,  0., 0.],
+    #                             [ 0.,  0., -1., d],
+    #                             [ 1.,  0.,  0., d],
+    #                             [ 0.,  0.,  0., 1.]])
+    # Tw_e_bottom1[0:3, 0:3] = Tw_e_bottom1[0:3,0:3]@rot_y45
+
     Bw_topbottom = numpy.zeros((6,2))
     #Bw_topbottom[2,:] = [-dimensions[2]/2,dimensions[2]/2]
     bottom_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom1, Bw = Bw_topbottom)
@@ -150,6 +162,8 @@ def grasp(box,
 
     if dimensions[0] < gripper_width:
         chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
+    else:
+        print('Not Added')
 
     if dimensions[2] < gripper_width:
         chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
