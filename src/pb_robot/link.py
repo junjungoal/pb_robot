@@ -5,6 +5,15 @@ import pb_robot.geometry as geometry
 
 CLIENT = 0
 
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
+
 class Link(object):
     def __init__(self, body, linkID):
         self.body = body

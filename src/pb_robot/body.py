@@ -7,6 +7,15 @@ from pb_robot.link import Link
 
 CLIENT = 0
 
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
+
 JOINT_TYPES = {
     p.JOINT_REVOLUTE: 'revolute', # 0
     p.JOINT_PRISMATIC: 'prismatic', # 1
@@ -103,7 +112,8 @@ class Body(object):
         (point, quat) = p.multiplyTransforms(pose[0],
                                              pose[1],
                                              dynamics.local_inertial_pos,
-                                             dynamics.local_inertial_orn)
+                                             dynamics.local_inertial_orn,
+                                             physicsClientId=CLIENT)
         p.resetBasePositionAndOrientation(self.id, point, quat, physicsClientId=CLIENT)
 
     def get_dimensions(self):

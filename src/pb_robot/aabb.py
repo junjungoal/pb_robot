@@ -8,6 +8,15 @@ BASE_LINK = -1
 CLIENT = 0
 AABB = namedtuple('AABB', ['lower', 'upper'])
 
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
+
 def aabb_from_points(points):
     return AABB(np.min(points, axis=0), np.max(points, axis=0))
 
