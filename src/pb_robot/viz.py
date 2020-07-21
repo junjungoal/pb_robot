@@ -7,6 +7,15 @@ import pb_robot
 CLIENT = 0
 BASE_LINK = -1
 
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
+    
 def get_lifetime(lifetime):
     if lifetime is None:
         return 0

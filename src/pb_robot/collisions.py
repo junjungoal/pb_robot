@@ -38,8 +38,9 @@ def get_self_link_pairs(body, joints, disabled_collisions=set(), only_moving=Tru
     moving_links = get_moving_links(body, joints)
     #fixed_links = list(set(body.links) - set(moving_links))
     moving_links_ids = [l.linkID for l in moving_links]
-    fixed_links = [link for link in body.links if link.linkID not in moving_links_ids] 
+    fixed_links = [link for link in body.all_links if link.linkID not in moving_links_ids] 
     check_link_pairs = list(product(moving_links, fixed_links))
+
     if only_moving:
         check_link_pairs.extend(get_moving_pairs(body, joints))
     else:
