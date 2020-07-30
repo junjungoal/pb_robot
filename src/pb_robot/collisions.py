@@ -13,9 +13,13 @@ ContactResult = namedtuple('ContactResult', ['contactFlag', 'bodyUniqueIdA', 'bo
                                              'contactNormalOnB', 'contactDistance', 'normalForce'])
 
 
-def get_collision_fn(body, joints, obstacles, attachments, self_collisions, custom_limits={}, **kwargs):
-    check_link_pairs = get_self_link_pairs(body, joints) if self_collisions else []
-    moving_links = frozenset(get_moving_links(body, joints))
+def get_collision_fn(body, joints, obstacles, attachments, self_collisions, custom_limits={}, check_link_pairs=None, unfrozen=None, **kwargs):
+    if check_link_pairs is None:
+        check_link_pairs = get_self_link_pairs(body, joints) if self_collisions else []
+    if unfrozen is None:
+        unfrozen = get_moving_links(body, joints)
+    moving_links = frozenset(unfrozen)
+
     moving_bodies = [(body, moving_links)] + attachments
     check_body_pairs = list(product(moving_bodies, obstacles))  
     lower_limits, upper_limits = body.get_custom_limits(joints, custom_limits)
@@ -31,7 +35,7 @@ def get_collision_fn(body, joints, obstacles, attachments, self_collisions, cust
             if pairwise_collision(body1, body2, **kwargs): 
                 return True
         return False
-    return collision_fn
+    return collision_fn, check_link_pairs, unfrozen
 
 
 def get_self_link_pairs(body, joints, disabled_collisions=set(), only_moving=True):

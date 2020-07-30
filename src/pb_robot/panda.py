@@ -66,6 +66,9 @@ class PandaArm(object):
         self.startq = [0, -numpy.pi/4.0, 0, -0.75*numpy.pi, 0, numpy.pi/2.0, numpy.pi/4.0]
         self.SetJointValues(self.startq) 
 
+        self.moving_links = None
+        self.check_link_pairs = None
+
     def GetJointValues(self):
         '''Return the robot configuration
         @return Nx1 array of joint values'''
@@ -173,8 +176,9 @@ class PandaArm(object):
             obstacles = [b for b in pb_robot.utils.get_bodies() if 'panda' not in b.get_name() and b.get_name() not in self.grabbedObjects.keys()]
         attachments = [g for g in self.grabbedObjects.values()]
 
-        collisionfn = pb_robot.collisions.get_collision_fn(self.__robot, self.joints, obstacles, 
-                                                           attachments, self_collisions)
+        collisionfn, self.check_link_pairs, self.moving_links = pb_robot.collisions.get_collision_fn(self.__robot, self.joints, obstacles, 
+                                                                                           attachments, self_collisions, check_link_pairs=self.check_link_pairs,
+                                                                                           unfrozen=self.moving_links)
 
         # Evaluate if in collision
         val = not collisionfn(q)
