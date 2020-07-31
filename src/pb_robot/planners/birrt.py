@@ -14,13 +14,12 @@ from .plannerTypes import GoalType, ConstraintType
 class BiRRTPlanner(object):
     '''My implementation of cbirrt, for now without constraining,
     for toying around'''
-    def __init__(self, robot):
+    def __init__(self):
         ## Constants 
         self.TOTAL_TIME = 10.0
         self.SHORTEN_TIME = 1.0 # For video level, 4 seconds
         self.PSAMPLE = 0.2 
         self.QSTEP = 1
-        self.robot = robot
         self.tstart = None
 
         self.goal = None
@@ -346,6 +345,7 @@ class BiRRTPlanner(object):
         shortenStart = time.time()
         #while ((time.time() - self.tstart) < self.TOTAL_TIME) and ((time.time() - shortenStart) < shortenTime):
         while (time.time() - shortenStart) < self.SHORTEN_TIME:
+            if len(P) < 3: return P # Too few waypoints to shortcut
             Tshortcut = nx.DiGraph(name='postprocessing')
             i = random.randint(0, len(P)-2)
             j = random.randint(i, len(P)-1)

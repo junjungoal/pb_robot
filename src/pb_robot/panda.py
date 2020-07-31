@@ -21,18 +21,27 @@ class Panda(pb_robot.body.Body):
 
         self.arm_joint_names = ['panda_joint{}'.format(i) for i in range(1, 8)]
         self.arm_joints = [self.joint_from_name(n) for n in self.arm_joint_names]
-        self.arm = PandaArm(self.id, self.arm_joints, 'panda_hand')
+        self.ik_info = pb_robot.ikfast.utils.IKFastInfo(module_name='franka_panda.ikfast_panda_arm',
+                                                        base_link='panda_link0',
+                                                        ee_link='panda_link8',
+                                                        free_joints=['panda_joint7'])
+        self.torque_limits = [87, 87, 87, 87, 12, 12, 12]
+        self.startq = [0, -numpy.pi/4.0, 0, -0.75*numpy.pi, 0, numpy.pi/2.0, numpy.pi/4.0]
+        self.hand = PandaHand(self.id)
+        self.arm = Manipulator(self.id, self.arm_joints, self.hand, 'panda_hand', self.ik_info, self.torque_limits, self.startq)
+        # hand joints, torque limits, ik_info, start_q
+
 
         # Eventually add a more fleshed out planning suite
-        self.birrt = pb_robot.planners.BiRRTPlanner(self)
-        self.snap = pb_robot.planners.SnapPlanner(self)
+        #self.birrt = pb_robot.planners.BiRRTPlanner(self)
+        #self.snap = pb_robot.planners.SnapPlanner(self)
 
 
-class PandaArm(object):
+class Manipulator(object):
     '''Class for Arm specific functions. Most of this is simply syntatic sugar for function
     calls to body functions. Within the documentation, N is the number of degrees of 
     freedom, which is 7 for Panda '''
-    def __init__(self, bodyID, joints, handName):
+    def __init__(self, bodyID, joints, hand, eeName, ik, torque_limits, startq=None):
         '''Establish all the robot specific variables and set up key
         data structures. Eventually it might be nice to read the specific variables
         from a combination of the urdf and a yaml file'''
@@ -40,15 +49,18 @@ class PandaArm(object):
         self.__robot = pb_robot.body.Body(self.bodyID)
         self.joints = joints
         self.jointsID = [j.jointID for j in self.joints]
-        self.eeFrame = self.__robot.link_from_name(handName)
-        self.hand = PandaHand(bodyID, 'panda_finger_joint1', 'panda_finger_joint2')
-        self.torque_limits = [87, 87, 87, 87, 12, 12, 12]
+        self.eeFrame = self.__robot.link_from_name(eeName)
+        self.hand = hand 
+        self.torque_limits = torque_limits
+
+        # Eventually add a more fleshed out planning suite
+        self.birrt = pb_robot.planners.BiRRTPlanner()
+        self.snap = pb_robot.planners.SnapPlanner()
 
         # Add force torque sensor at wrist
-        self.ft_joint = self.__robot.joint_from_name('panda_hand_joint')
-        p.enableJointForceTorqueSensor(self.__robot.id, self.ft_joint.jointID, enableSensor=1)
-
-        self.control = PandaControls(self)
+        #self.ft_joint = self.__robot.joint_from_name('panda_hand_joint')
+        #p.enableJointForceTorqueSensor(self.__robot.id, self.ft_joint.jointID, enableSensor=1)
+        #self.control = PandaControls(self)
 
         # We manually maintain the kinematic tree of grasped objects by
         # keeping track of a dictionary of the objects and their relations
@@ -57,14 +69,18 @@ class PandaArm(object):
         self.grabbedObjects = dict()
 
         # Use IK fast for inverse kinematics
-        self.ik_info = pb_robot.ikfast.utils.IKFastInfo(module_name='franka_panda.ikfast_panda_arm', 
-                                                        base_link='panda_link0',
-                                                        ee_link='panda_link8', 
-                                                        free_joints=['panda_joint7'])
+        self.ik_info = ik
 
         # Set the robot to the default home position 
-        self.startq = [0, -numpy.pi/4.0, 0, -0.75*numpy.pi, 0, numpy.pi/2.0, numpy.pi/4.0]
-        self.SetJointValues(self.startq) 
+        if startq is not None:
+            self.startq = startq #[0, -numpy.pi/4.0, 0, -0.75*numpy.pi, 0, numpy.pi/2.0, numpy.pi/4.0]
+            self.SetJointValues(self.startq) 
+
+    def get_name(self):
+        return self.__robot.get_name()
+
+    def __repr__(self):
+        return self.get_name() + '_arm'
 
         self.moving_links = None
         self.check_link_pairs = None
@@ -135,7 +151,7 @@ class PandaArm(object):
             dofs[i] = random.uniform(lower[i], upper[i])
         return dofs
 
-    def ComputeIK(self, transform, seed_q=None):
+    def ComputeIK(self, transform, seed_q=None, max_distance=0.2):
         '''Compute the inverse kinematics of a transform, with the option 
         to bias towards a seed configuration. If no IK can be found with that
         bias we attempt to find an IK without that bias
@@ -154,7 +170,7 @@ class PandaArm(object):
             old_q = self.GetJointValues()
             self.SetJointValues(seed_q)
             q = next(closest_inverse_kinematics(self.__robot, self.ik_info, self.eeFrame,
-                                                pose, max_distance=0.2, max_time=0.05), None)
+                                                pose, max_distance=max_distance, max_time=0.05), None)
             self.SetJointValues(old_q)
             # If no ik, fall back on unseed version
             if q is None:

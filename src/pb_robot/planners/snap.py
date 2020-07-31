@@ -8,8 +8,8 @@ from . import util
 
 class SnapPlanner(object):
     '''Snap Planner - maintaining class structure because may be useful later when all formatting'''
-    def __init__(self, robot):
-        self.robot = robot
+    def __init__(self):
+        self.checkRate = 0.1
 
     def PlanToConfiguration(self, manip, start_q, goal_q, obstacles=None):
         '''Plan from one joint location (start) to another (goal_config)
@@ -25,7 +25,7 @@ class SnapPlanner(object):
 
         # Check intermediate points for collisions
         cdist = util.cspaceLength([start_q, goal_q])
-        count = int(cdist / 0.1) # Check every 0.1 distance (a little arbitrary)
+        count = int(cdist / self.checkRate) # Check every 0.1 distance (a little arbitrary)
 
         # linearly interpolate between that at some step size and check all those points
         interp = [numpy.linspace(start_q[i], goal_q[i], count+1).tolist() for i in range(len(start_q))]
