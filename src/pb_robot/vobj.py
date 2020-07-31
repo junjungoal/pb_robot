@@ -9,11 +9,29 @@ class BodyPose(object):
     def __repr__(self):
         return 'p{}'.format(id(self) % 1000)
 
+class RelativePose(object):
+    # For cap and bottle, cap is body1, bottle is body2
+    #body1_body2F = numpy.dot(numpy.linalg.inv(body1.get_transform()), body2.get_transform())
+    #relative_pose = pb_robot.vobj.RelativePose(body1, body2, body1_body2F)
+
+    def __init__(self, body1, body2, pose):
+        self.body1 = body1
+        self.body2 = body2
+        self.pose = pose #body1_body2F
+
+    def computeB1GivenB2(self, body2_pose):
+        return numpy.linalg.inv(numpy.dot(self.pose, numpy.linalg.inv(body2_pose)))
+
+    def __repr__(self):
+        return 'rp{}'.format(id(self) % 1000)
+
 class BodyGrasp(object):
-    def __init__(self, body, grasp_objF, manip):
+    def __init__(self, body, grasp_objF, manip, r=0.02, mu=0.5):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.manip = manip
+        self.r = r
+        self.mu = mu
     def simulate(self):
         if self.body.get_name() in self.manip.grabbedObjects:
             # Object grabbed, need to release
@@ -81,6 +99,8 @@ class CartImpedPath(object):
     def __init__(self, manip, start_q, ee_path, stiffness=None, timestep=0.05):
         if stiffness is None:
             stiffness = [400]*6
+        elif isinstance(stiffness, int) or isinstance(stiffness, float):
+            stiffness = [stiffness]*6
         self.manip = manip
         self.ee_path = ee_path
         self.start_q = start_q
