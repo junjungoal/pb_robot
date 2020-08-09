@@ -8,6 +8,7 @@ from . import vobj
 from . import viz
 from . import collisions
 from . import panda
+from . import wsg50_hand
 from . import yumi
 
 import tsrs

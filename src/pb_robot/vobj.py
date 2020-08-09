@@ -26,7 +26,7 @@ class RelativePose(object):
         return 'rp{}'.format(id(self) % 1000)
 
 class BodyGrasp(object):
-    def __init__(self, body, grasp_objF, manip, r=0.02, mu=0.5):
+    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.manip = manip
@@ -48,7 +48,7 @@ class ViseGrasp(object):
     def __init__(self, body, grasp_objF, hand):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
-        self.hand = pb_robot.panda.PandaHand(hand.id)
+        self.hand = pb_robot.wsg50_hand.WSG50Hand(hand.id)
     def simulate(self):
         if self.body.get_name() in self.hand.grabbedObjects:
             # Object grabbed, need to release
