@@ -189,7 +189,7 @@ class Manipulator(object):
 
         if obstacles is None:
             # If no set of obstacles given, assume all obstacles in the environment (that arent the robot and not grasped) 
-            obstacles = [b for b in pb_robot.utils.get_bodies() if 'panda' not in b.get_name() and b.get_name() not in self.grabbedObjects.keys()]
+            obstacles = [b for b in pb_robot.utils.get_bodies() if self.get_name() not in b.get_name() and b.get_name() not in self.grabbedObjects.keys()]
         attachments = [g for g in self.grabbedObjects.values()]
 
         collisionfn, self.check_link_pairs, self.moving_links = pb_robot.collisions.get_collision_fn(self.__robot, self.joints, obstacles, 
