@@ -16,7 +16,7 @@ class BiRRTPlanner(object):
     for toying around'''
     def __init__(self):
         ## Constants 
-        self.TOTAL_TIME = 10.0
+        self.TOTAL_TIME = 15.0
         self.SHORTEN_TIME = 1.0 # For video level, 4 seconds
         self.PSAMPLE = 0.2 
         self.QSTEP = 1

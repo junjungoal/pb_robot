@@ -417,7 +417,7 @@ class Body(object):
     def set_mass(self, mass, linkID=None):
         if linkID is None:
             linkID = self.base_link
-        self.set_dynamics(link=linkID, mass=mass)
+        self.set_dynamics(linkID=linkID, mass=mass)
 
     def set_static(self):
         for link in self.all_links:
