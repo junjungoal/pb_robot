@@ -13,15 +13,12 @@ class RelativePose(object):
     # For cap and bottle, cap is body1, bottle is body2
     #body1_body2F = numpy.dot(numpy.linalg.inv(body1.get_transform()), body2.get_transform())
     #relative_pose = pb_robot.vobj.RelativePose(body1, body2, body1_body2F)
-
     def __init__(self, body1, body2, pose):
         self.body1 = body1
         self.body2 = body2
         self.pose = pose #body1_body2F
-
     def computeB1GivenB2(self, body2_pose):
         return numpy.linalg.inv(numpy.dot(self.pose, numpy.linalg.inv(body2_pose)))
-
     def __repr__(self):
         return 'rp{}'.format(id(self) % 1000)
 
@@ -41,6 +38,14 @@ class BodyGrasp(object):
             # Object not grabbed, need to grab
             self.manip.hand.Close()
             self.manip.Grab(self.body, self.grasp_objF)
+    def execute(self, realRobot=None, realHand=None):
+        #FIXME need to confirm logic and widths
+        hand_pose = realHand.joint_positions()
+        if hand_pose['panda_finger_joint_1'] < 0.08:
+            realHand.Open()
+        else:
+            # For now, grasp with fixed N (40, used in mechanics)
+            realHand.grasp(0.01, 40)
     def __repr__(self):
         return 'g{}'.format(id(self) % 1000)
 
@@ -58,6 +63,8 @@ class ViseGrasp(object):
             # Object not grabbed, need to grab
             self.hand.Close()
             self.hand.Grab(self.body, self.grasp_objF)
+    def execute(self, realRobot=None, realHand=None):
+        raise NotImplementedError('Havent conected WSG50 hand yet')
     def __repr__(self):
         return 'vg{}'.format(id(self) % 1000)
 
@@ -81,24 +88,37 @@ class JointSpacePath(object):
         self.path = path
     def simulate(self):
         self.manip.ExecutePositionPath(self.path)
+    def execute(self, realRobot=None, realHand=None):
+        #FIXME in execute_position_path compare time_so_far to timeout
+        dictPath = [realRobot.convertToDict(q) for q in path]
+        realRobot.execute_position_path(dict_path)
     def __repr__(self):
         return 'j_path{}'.format(id(self) % 1000)
 
 class MoveToTouch(object):
-    #TODO do I want to change the input?
     def __init__(self, manip, start, end):
         self.manip = manip
         self.start = start
         self.end = end
     def simulate(self):
         self.manip.ExecutePositionPath([self.start, self.end])
+    def execute(self, realRobot=None, realHand=None):
+        realRobot.move_to_touch(realRobot.convertToDict(self.start))
     def __repr__(self):
         return 'move_touch{}'.format(id(self) % 1000)
 
+class FrankaQuata(object):
+    def __init__(self, quat):
+        self.x = quat[0]
+        self.y = quat[1]
+        self.z = quat[2]
+        self.w = quat[3]
+
+
 class CartImpedPath(object):
     def __init__(self, manip, start_q, ee_path, stiffness=None, timestep=0.05):
-        if stiffness is None:
-            stiffness = [400]*6
+        if stiffness is None: 
+            stiffness = [400, 400, 400, 40, 40, 40]
         elif isinstance(stiffness, int) or isinstance(stiffness, float):
             stiffness = [stiffness]*6
         self.manip = manip
@@ -115,101 +135,13 @@ class CartImpedPath(object):
             q = self.manip.ComputeIK(self.ee_path[i], seed_q=q)
             self.manip.SetJointValues(q)
             time.sleep(self.timestep)
+    def execute(self, realRobot=None, realHand=None):
+        #FIXME adjustment based on current position..? Need to play with how execution goes.
+        poses = []
+        for transform in ee_path:
+            quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
+            poses += [{'position': transform[0:3, 3], 'orientation': quat}]
+        realRobot.execute_cart_impedance_traj(poses, stiffness=self.stiffness)
+
     def __repr__(self):
         return 'ci_path{}'.format(id(self) % 1000)
-
-
-class BodyPath(object):
-    def __init__(self, body, path, joints=None, attachments=[]):
-        if joints is None:
-            joints = body.get_movable_joints()
-        self.body = body
-        self.path = path
-        self.joints = joints
-        self.attachments = attachments
-    def bodies(self):
-        return set([self.body] + [attachment.body for attachment in self.attachments])
-    def iterator(self):
-        for i, configuration in enumerate(self.path):
-            self.body.arm.SetJointValues(configuration)
-            for grasp in self.attachments:
-                #grasp.assign()
-                #TODO move this to only grasp once. Also, need to be able to release
-                self.body.arm.Grab(grasp.body, pb_robot.geometry.tform_from_pose(grasp.grasp_pose))
-            yield i
-    def control(self, real_time=False, dt=0):
-        # TODO: just waypoints
-        if real_time:
-            pb_robot.utils.enable_real_time()
-        else:
-            pb_robot.utils.disable_real_time()
-        for values in self.path:
-            for _ in pb_robot.utils.joint_controller(self.body, self.joints, values):
-                pb_robot.utils.enable_gravity()
-                if not real_time:
-                    pb_robot.utils.step_simulation()
-                time.sleep(dt)
-    def refine(self, num_steps=0):
-        return self.__class__(self.body, pb_robot.planning.refine_path(self.body, self.joints, self.path, num_steps), self.joints, self.attachments)
-    def reverse(self):
-        return self.__class__(self.body, self.path[::-1], self.joints, self.attachments)
-    def __repr__(self):
-        return '{}({},{},{},{})'.format(self.__class__.__name__, self.body, len(self.joints), len(self.path), len(self.attachments))
-
-class ApplyForce(object):
-    def __init__(self, body, robot, link):
-        self.body = body
-        self.robot = robot
-        self.link = link
-    def bodies(self):
-        return {self.body, self.robot}
-    def iterator(self, **kwargs):
-        return []
-    def refine(self, **kwargs):
-        return self
-    def __repr__(self):
-        return '{}({},{})'.format(self.__class__.__name__, self.robot, self.body)
-
-class Attach(ApplyForce):
-    def control(self, **kwargs):
-        # TODO: store the constraint_id?
-        pb_robot.grasp.add_fixed_constraint(self.body, self.robot, self.link)
-    def reverse(self):
-        return Detach(self.body, self.robot, self.link)
-
-class Detach(ApplyForce):
-    def control(self, **kwargs):
-        pb_robot.grasp.remove_fixed_constraint(self.body, self.robot, self.link)
-    def reverse(self):
-        return Attach(self.body, self.robot, self.link)
-
-class Command(object):
-    def __init__(self, body_paths):
-        self.body_paths = body_paths
-
-    def step(self):
-        for i, body_path in enumerate(self.body_paths):
-            for j in body_path.iterator():
-                msg = '{},{}) step?'.format(i, j)
-                raw_input(msg)
-                #print(msg)
-
-    def execute(self, time_step=0.05):
-        for i, body_path in enumerate(self.body_paths):
-            raw_input("next path?")
-            for j in body_path.iterator():
-                #time.sleep(time_step)
-                pb_robot.utils.wait_for_duration(time_step)
-
-    def control(self, real_time=False, dt=0): # TODO: real_time
-        for body_path in self.body_paths:
-            body_path.control(real_time=real_time, dt=dt)
-
-    def refine(self, **kwargs):
-        return self.__class__([body_path.refine(**kwargs) for body_path in self.body_paths])
-
-    def reverse(self):
-        return self.__class__([body_path.reverse() for body_path in reversed(self.body_paths)])
-
-    def __repr__(self):
-        return 'c{}'.format(id(self) % 1000)
