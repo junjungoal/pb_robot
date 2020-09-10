@@ -39,13 +39,12 @@ class BodyGrasp(object):
             self.manip.hand.Close()
             self.manip.Grab(self.body, self.grasp_objF)
     def execute(self, realRobot=None, realHand=None):
-        #FIXME need to confirm logic and widths
         hand_pose = realHand.joint_positions()
-        if hand_pose['panda_finger_joint_1'] < 0.08:
-            realHand.Open()
+        if hand_pose['panda_finger_joint1'] < 0.0398: # open pose
+            realHand.open()
         else:
             # For now, grasp with fixed N (40, used in mechanics)
-            realHand.grasp(0.01, 40)
+            realHand.grasp(0.03, 40)
     def __repr__(self):
         return 'g{}'.format(id(self) % 1000)
 
@@ -89,9 +88,8 @@ class JointSpacePath(object):
     def simulate(self):
         self.manip.ExecutePositionPath(self.path)
     def execute(self, realRobot=None, realHand=None):
-        #FIXME in execute_position_path compare time_so_far to timeout
-        dictPath = [realRobot.convertToDict(q) for q in path]
-        realRobot.execute_position_path(dict_path)
+        dictPath = [realRobot.convertToDict(q) for q in self.path]
+        realRobot.execute_position_path(dictPath)
     def __repr__(self):
         return 'j_path{}'.format(id(self) % 1000)
 
@@ -103,11 +101,11 @@ class MoveToTouch(object):
     def simulate(self):
         self.manip.ExecutePositionPath([self.start, self.end])
     def execute(self, realRobot=None, realHand=None):
-        realRobot.move_to_touch(realRobot.convertToDict(self.start))
+        realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'move_touch{}'.format(id(self) % 1000)
 
-class FrankaQuata(object):
+class FrankaQuat(object):
     def __init__(self, quat):
         self.x = quat[0]
         self.y = quat[1]
@@ -121,6 +119,7 @@ class CartImpedPath(object):
             stiffness = [400, 400, 400, 40, 40, 40]
         elif isinstance(stiffness, int) or isinstance(stiffness, float):
             stiffness = [stiffness]*6
+            stiffness[3:6] = numpy.divide(stiffness[3:6], 10) #TODO cleaner way?
         self.manip = manip
         self.ee_path = ee_path
         self.start_q = start_q
@@ -138,7 +137,7 @@ class CartImpedPath(object):
     def execute(self, realRobot=None, realHand=None):
         #FIXME adjustment based on current position..? Need to play with how execution goes.
         poses = []
-        for transform in ee_path:
+        for transform in self.ee_path:
             quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
             poses += [{'position': transform[0:3, 3], 'orientation': quat}]
         realRobot.execute_cart_impedance_traj(poses, stiffness=self.stiffness)
