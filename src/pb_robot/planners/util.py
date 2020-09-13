@@ -26,7 +26,18 @@ def generatePath(path_array):
     processed_path = robot.PostProcessPath(path) #, constrained=True, smooth=False)
     return processed_path
     '''
-    return path_array
+    if path_array is None:
+        return None
+
+    # Remove duplicate points
+    removeRows = []
+    for i in xrange(len(path_array)-1):
+        diff = sum(numpy.subtract(path_array[i], path_array[i+1]))
+        if abs(diff) < 1e-2:
+            removeRows += [i]
+    # Remove all rows after.
+    simplifiedPath = numpy.delete(path_array, removeRows, 0)
+    return simplifiedPath
 
 def getDirectory():
     '''Get the file path for the location of kinbody

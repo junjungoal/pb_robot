@@ -23,12 +23,13 @@ class RelativePose(object):
         return 'rp{}'.format(id(self) % 1000)
 
 class BodyGrasp(object):
-    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None):
+    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=40):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.manip = manip
         self.r = r
         self.mu = mu
+        self.N = N
     def simulate(self):
         if self.body.get_name() in self.manip.grabbedObjects:
             # Object grabbed, need to release
@@ -43,8 +44,7 @@ class BodyGrasp(object):
         if hand_pose['panda_finger_joint1'] < 0.0398: # open pose
             realHand.open()
         else:
-            # For now, grasp with fixed N (40, used in mechanics)
-            realHand.grasp(0.03, 40)
+            realHand.grasp(0.02, self.N, epsilon_inner=0.1, epsilon_outer=0.1)
     def __repr__(self):
         return 'g{}'.format(id(self) % 1000)
 
@@ -117,9 +117,6 @@ class CartImpedPath(object):
     def __init__(self, manip, start_q, ee_path, stiffness=None, timestep=0.05):
         if stiffness is None: 
             stiffness = [400, 400, 400, 40, 40, 40]
-        elif isinstance(stiffness, int) or isinstance(stiffness, float):
-            stiffness = [stiffness]*6
-            stiffness[3:6] = numpy.divide(stiffness[3:6], 10) #TODO cleaner way?
         self.manip = manip
         self.ee_path = ee_path
         self.start_q = start_q

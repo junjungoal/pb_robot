@@ -144,12 +144,16 @@ class Manipulator(object):
 
     def randomConfiguration(self):
         '''Generate a random configuration inside the position limits
+        that doesn't have self-collision
         @return Nx1 configuration'''
         (lower, upper) = self.GetJointLimits()
-        dofs = numpy.zeros(len(lower))
-        for i in range(len(lower)):
-            dofs[i] = random.uniform(lower[i], upper[i])
-        return dofs
+<<<<<<< HEAD
+        while True:
+            dofs = numpy.zeros(len(lower))
+            for i in range(len(lower)):
+                dofs[i] = random.uniform(lower[i], upper[i])
+            if self.IsCollisionFree(dofs, self_collisions=True, obstacles=[]):
+                return dofs
 
     def ComputeIK(self, transform, seed_q=None, max_distance=0.2):
         '''Compute the inverse kinematics of a transform, with the option 
@@ -198,9 +202,28 @@ class Manipulator(object):
 
         # Evaluate if in collision
         val = not collisionfn(q)
+
+        # Robot will error if links get too close (i.e. predicts collision)
+        # so we want to insure that the is padding wrt collision-free-ness 
+        distances = self.HasClearance(q)
+
         # Restore configuration
         self.SetJointValues(oldq)
-        return val
+        return val and distances
+
+    def HasClearance(self, q):
+        for i in self.__robot.all_links:
+            for j in self.__robot.all_links:
+                linkI = i.linkID
+                linkJ = j.linkID
+                # Dont want to check adjancent links or link 8 (fake hand joint)
+                if (abs(linkI-linkJ) < 2) or (linkI == 8) or (linkJ == 8):
+                    break
+                pts = p.getClosestPoints(self.__robot.id, self.__robot.id, distance=0.01, linkIndexA=linkI, linkIndexB=linkJ)
+                if len(pts) > 0:
+                    return False 
+        return True
+
 
     def GetJacobian(self, q): 
         '''Compute the jacobian at configuration q. The full set of joints
