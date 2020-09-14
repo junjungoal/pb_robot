@@ -103,7 +103,19 @@ class MoveToTouch(object):
     def execute(self, realRobot=None, realHand=None):
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
-        return 'move_touch{}'.format(id(self) % 1000)
+        return 'moveToTouch{}'.format(id(self) % 1000)
+
+class MoveFromTouch(object):
+    def __init__(self, manip, start, end):
+        self.manip = manip
+        self.start = start
+        self.end = end
+    def simulate(self):
+        self.manip.ExecutePositionPath([self.start, self.end])
+    def execute(self, realRobot=None, realHand=None):
+        realRobot.move_from_touch(realRobot.convertToDict(self.end))
+    def __repr__(self):
+        return 'moveFromTouch{}'.format(id(self) % 1000)
 
 class FrankaQuat(object):
     def __init__(self, quat):
