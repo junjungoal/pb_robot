@@ -2,7 +2,7 @@ import numpy, math
 from tsr.tsrlibrary import TSRFactory
 from tsr.tsr import TSR, TSRChain
 
-def cap_grasp(cap, push_distance=0.0, **kw_args):
+def cap_grasp(cap, push_distance=0.0, topOnly=False, **kw_args):
     """
     @param cap The cap to grasp
     @param push_distance The distance to push before grasping
@@ -26,7 +26,8 @@ def cap_grasp(cap, push_distance=0.0, **kw_args):
     front_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_front1, Bw = Bw_yz)
     grasp_chain_front1 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=front_tsr1)
-    chain_list += [ grasp_chain_front1 ] # AROUND
+    if not topOnly:
+        chain_list += [ grasp_chain_front1 ] # AROUND
     
 
     # Top and Bottom sides
@@ -50,7 +51,8 @@ def cap_grasp(cap, push_distance=0.0, **kw_args):
     side_tsr2 = TSR(T0_w = T0_w, Tw_e = Tw_e_side2, Bw = Bw_side)
     grasp_chain_side2 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=side_tsr2)
-    chain_list += [ grasp_chain_side2 ]   #BOTTOM GRASP 
+    if not topOnly: 
+        chain_list += [ grasp_chain_side2 ]   #BOTTOM GRASP 
 
     # Each chain in the list can also be rotated by 180 degrees around z
     rotated_chain_list = []
