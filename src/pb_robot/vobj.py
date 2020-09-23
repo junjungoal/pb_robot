@@ -41,7 +41,7 @@ class BodyGrasp(object):
             self.manip.Grab(self.body, self.grasp_objF)
     def execute(self, realRobot=None, realHand=None):
         hand_pose = realHand.joint_positions()
-        if hand_pose['panda_finger_joint1'] < 0.0398: # open pose
+        if hand_pose['panda_finger_joint1'] < 0.039: # open pose
             realHand.open()
         else:
             realHand.grasp(0.02, self.N, epsilon_inner=0.1, epsilon_outer=0.1)
