@@ -106,12 +106,12 @@ class MoveToTouch(object):
         return 'moveToTouch{}'.format(id(self) % 1000)
 
 class MoveFromTouch(object):
-    def __init__(self, manip, start, end):
+    def __init__(self, manip, end):
         self.manip = manip
-        self.start = start
         self.end = end
     def simulate(self):
-        self.manip.ExecutePositionPath([self.start, self.end])
+        start = self.manip.GetJointValues()
+        self.manip.ExecutePositionPath([start, self.end])
     def execute(self, realRobot=None, realHand=None):
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
