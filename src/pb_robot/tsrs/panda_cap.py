@@ -151,9 +151,9 @@ def cap_palm_push(cap, **kw_args):
     chain_list = []
 
     # Base of cap (opposite side of head)
-    Tw_e_front1 = numpy.array([[ 0., 0., -1.,  0.03], 
-                               [ 0., 1.,  0.,  0.0],
-                               [ 1., 0.,  0.,  0.035], 
+    Tw_e_front1 = numpy.array([[ 0., 0., -1.,  0.04], 
+                               [ 0., 1.,  0.,  0],
+                               [ 1., 0.,  0.,  0.03], # Downward 
                                [ 0., 0.,  0., 1.]])
     Bw_yz = numpy.zeros((6,2))
     Bw_yz[1, :] = [-epsilon, epsilon]
