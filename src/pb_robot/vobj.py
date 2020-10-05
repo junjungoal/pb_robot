@@ -1,6 +1,7 @@
 import pb_robot
 import numpy
 import time
+import quaternion
 
 class BodyPose(object):
     def __init__(self, body, pose):
@@ -39,12 +40,12 @@ class BodyGrasp(object):
             # Object not grabbed, need to grab
             self.manip.hand.Close()
             self.manip.Grab(self.body, self.grasp_objF)
-    def execute(self, realRobot=None, realHand=None):
-        hand_pose = realHand.joint_positions()
+    def execute(self, realRobot=None):
+        hand_pose = realRobot.hand.joint_positions()
         if hand_pose['panda_finger_joint1'] < 0.039: # open pose
-            realHand.open()
+            realRobot.hand.open()
         else:
-            realHand.grasp(0.02, self.N, epsilon_inner=0.1, epsilon_outer=0.1)
+            realRobot.hand.grasp(0.02, self.N, epsilon_inner=0.1, epsilon_outer=0.1)
     def __repr__(self):
         return 'g{}'.format(id(self) % 1000)
 
@@ -62,8 +63,10 @@ class ViseGrasp(object):
             # Object not grabbed, need to grab
             self.hand.Close()
             self.hand.Grab(self.body, self.grasp_objF)
-    def execute(self, realRobot=None, realHand=None):
-        raise NotImplementedError('Havent conected WSG50 hand yet')
+    def execute(self, realRobot=None):
+        print('Vise gripper!')
+        raw_input("Open or close gripper")
+        #raise NotImplementedError('Havent conected WSG50 hand yet')
     def __repr__(self):
         return 'vg{}'.format(id(self) % 1000)
 
@@ -87,7 +90,7 @@ class JointSpacePath(object):
         self.path = path
     def simulate(self):
         self.manip.ExecutePositionPath(self.path)
-    def execute(self, realRobot=None, realHand=None):
+    def execute(self, realRobot=None):
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
     def __repr__(self):
@@ -100,7 +103,7 @@ class MoveToTouch(object):
         self.end = end
     def simulate(self):
         self.manip.ExecutePositionPath([self.start, self.end])
-    def execute(self, realRobot=None, realHand=None):
+    def execute(self, realRobot=None):
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
@@ -112,7 +115,7 @@ class MoveFromTouch(object):
     def simulate(self):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end])
-    def execute(self, realRobot=None, realHand=None):
+    def execute(self, realRobot=None):
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveFromTouch{}'.format(id(self) % 1000)
@@ -123,6 +126,8 @@ class FrankaQuat(object):
         self.y = quat[1]
         self.z = quat[2]
         self.w = quat[3]
+    def __repr__(self):
+        return '({}, {}, {}, {})'.format(self.x, self.y, self.z, self.w)
 
 
 class CartImpedPath(object):
@@ -143,12 +148,18 @@ class CartImpedPath(object):
             q = self.manip.ComputeIK(self.ee_path[i], seed_q=q)
             self.manip.SetJointValues(q)
             time.sleep(self.timestep)
-    def execute(self, realRobot=None, realHand=None):
+    def execute(self, realRobot=None):
         #FIXME adjustment based on current position..? Need to play with how execution goes.
+        sim_start = self.ee_path[0, 0:3, 3]
+        real_start = realRobot.endpoint_pose()['position']
+        sim_real_diff = numpy.subtract(sim_start, real_start)
+        
         poses = []
         for transform in self.ee_path:
-            quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
-            poses += [{'position': transform[0:3, 3], 'orientation': quat}]
+            #quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
+            quat = quaternion.from_rotation_matrix(transform[0:3,0:3])
+            xyz = transform[0:3, 3] - sim_real_diff
+            poses += [{'position': xyz, 'orientation': quat}]
         realRobot.execute_cart_impedance_traj(poses, stiffness=self.stiffness)
 
     def __repr__(self):
