@@ -51,10 +51,11 @@ class BodyGrasp(object):
         return 'g{}'.format(id(self) % 1000)
 
 class ViseGrasp(object):
-    def __init__(self, body, grasp_objF, hand):
+    def __init__(self, body, grasp_objF, hand, N=60):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.hand = pb_robot.wsg50_hand.WSG50Hand(hand.id)
+        self.N = N
     def simulate(self):
         if self.body.get_name() in self.hand.grabbedObjects:
             # Object grabbed, need to release
@@ -66,9 +67,12 @@ class ViseGrasp(object):
             self.hand.MoveTo(-0.04, 0.04) 
             self.hand.Grab(self.body, self.grasp_objF)
     def execute(self, realRobot=None):
-        print('Vise gripper!')
-        raw_input("Open or close gripper")
-        #raise NotImplementedError('Havent conected WSG50 hand yet')
+        # This is a bad work-around
+        realhand = pb_robot.wsg50_hand.WSG50HandReal()
+        if realhand.get_width < realhand.openValue: 
+            realhand.open()
+        else:
+            realhand.grasp(80, self.N)
     def __repr__(self):
         return 'vg{}'.format(id(self) % 1000)
 

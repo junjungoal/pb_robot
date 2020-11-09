@@ -406,7 +406,9 @@ class Body(object):
         # TOOD: get full mass
         if linkID is None:
             linkID = self.base_link
-        return self.get_dynamics_info(linkID).mass
+        #return self.get_dynamics_info(linkID).mass
+        #TODO hack for now: 
+        return p.getDynamicsInfo(self.id, linkID)[0]
 
     def set_dynamics(self, linkID=None, **kwargs):
         # TODO: iterate over all links
