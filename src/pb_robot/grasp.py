@@ -4,6 +4,15 @@ import pybullet as p
 import pb_robot
 
 CLIENT = 0
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
+
 BASE_LINK = -1
 GraspInfo = namedtuple('GraspInfo', ['get_grasps', 'approach_pose'])
 ConstraintInfo = namedtuple('ConstraintInfo', ['parentBodyUniqueId', 'parentJointIndex',

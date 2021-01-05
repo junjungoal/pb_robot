@@ -12,6 +12,14 @@ import pb_robot.geometry as geometry
 PI = np.pi
 CIRCULAR_LIMITS = -PI, PI
 CLIENT = 0
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
 MAX_DISTANCE = 0
 NullSpace = namedtuple('Nullspace', ['lower', 'upper', 'range', 'rest'])
 

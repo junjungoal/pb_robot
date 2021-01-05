@@ -6,6 +6,14 @@ import pb_robot.transformations as transformations
 import pb_robot.helper as helper 
 
 CLIENT = 0
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
 # Geometry
 
 #Pose = namedtuple('Pose', ['position', 'orientation'])
