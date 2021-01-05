@@ -55,34 +55,6 @@ class WSG50Hand(pb_robot.body.Body):
         eeFrame = self.__robot.link_from_name('panda_hand')
         return pb_robot.geometry.tform_from_pose(eeFrame.get_link_pose())
 
-<<<<<<< HEAD
-class WSG50Hand_Real(object):
-    #TODO this should be inside the abb node and should cover add srvs and topics. 
-    # Do that as clean up later. 
-    def __init__(self):
-        print("Using WSG Hand")
-        #TODO need to adjust srv.robot_GetRobotAngle
-        # for open, call grasp. for close, call move (hacked for now)
-
-    def Home(self):
-        homeHand =  rospy.ServiceProxy('/wsg_50_driver/homing', srv.robot_GetRobotAngle)
-        rospy.wait_for_service('/wsg_50_driver/homing', timeout=0.5)
-        res = homeHand()
-
-    def Move(self, width, speed=100):
-        moveHand =  rospy.ServiceProxy('/wsg_50_driver/move', srv.robot_GetRobotAngle)
-        rospy.wait_for_service('/wsg_50_driver/move', timeout=0.5)
-        res = moveHand(width, speed)
-
-    def Grasp(self, width, speed=100, force=40):
-        setForceHand =  rospy.ServiceProxy('/wsg_50_driver/set_force', srv.robot_GetRobotAngle)
-        rospy.wait_for_service('/wsg_50_driver/set_force', timeout=0.5)
-        res = setForceHand(force)
-
-        graspHand =  rospy.ServiceProxy('/wsg_50_driver/grasp', srv.robot_GetRobotAngle)
-        rospy.wait_for_service('/wsg_50_driver/grasp', timeout=0.5)
-        res = graspHand(width, speed)
-=======
 #TODO want to move to wsg50_common and proper imports (not command line calls)
 import os
 import rospy
@@ -121,4 +93,3 @@ class WSG50HandReal(object):
             print("Unable to contact Hand")
             return 0 
 
->>>>>>> 880998e... Edit wsg execution issues

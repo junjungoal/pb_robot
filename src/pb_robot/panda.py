@@ -75,15 +75,15 @@ class Manipulator(object):
         if startq is not None:
             self.startq = startq #[0, -numpy.pi/4.0, 0, -0.75*numpy.pi, 0, numpy.pi/2.0, numpy.pi/4.0]
             self.SetJointValues(self.startq) 
+            
+        self.moving_links = None
+        self.check_link_pairs = None
 
     def get_name(self):
         return self.__robot.get_name()
 
     def __repr__(self):
         return self.get_name() + '_arm'
-
-        self.moving_links = None
-        self.check_link_pairs = None
 
     def GetJointValues(self):
         '''Return the robot configuration
@@ -147,7 +147,6 @@ class Manipulator(object):
         that doesn't have self-collision
         @return Nx1 configuration'''
         (lower, upper) = self.GetJointLimits()
-<<<<<<< HEAD
         while True:
             dofs = numpy.zeros(len(lower))
             for i in range(len(lower)):
