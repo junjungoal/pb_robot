@@ -21,7 +21,7 @@ def generatePath(path_array):
     cspec = robot.GetActiveConfigurationSpecification('linear')
     path.Init(cspec)
 
-    for i in xrange(len(path_array)):
+    for i in range(len(path_array)):
         path.Insert(i, path_array[i])
     processed_path = robot.PostProcessPath(path) #, constrained=True, smooth=False)
     return processed_path
@@ -31,7 +31,7 @@ def generatePath(path_array):
 
     # Remove duplicate points
     removeRows = []
-    for i in xrange(len(path_array)-1):
+    for i in range(len(path_array)-1):
         diff = sum(numpy.subtract(path_array[i], path_array[i+1]))
         if abs(diff) < 1e-2:
             removeRows += [i]

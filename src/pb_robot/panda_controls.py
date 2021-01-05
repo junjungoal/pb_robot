@@ -10,7 +10,7 @@ class PandaControls(object):
 
     def clampTorque(self, tau_d):
         tau_limit = [87, 87, 87, 87, 50, 50, 50] #robot.arm.torque_limits
-        for i in xrange(len(tau_d)):
+        for i in range(len(tau_d)):
             tau_d[i] = pb_robot.helper.clip(tau_d[i], -tau_limit[i], tau_limit[i])
         return tau_d
 
@@ -73,7 +73,7 @@ class PandaControls(object):
         jfs = [0]*1000
         counts = int(timeExerted / 0.01) # 0.01 is rate
 
-        for i in xrange(counts):
+        for i in range(counts):
             p.setJointMotorControlArray(self.arm.bodyID, self.arm.jointsID, p.VELOCITY_CONTROL,
                                         targetVelocities=[0]*7, forces=[35]*7)
 
@@ -132,7 +132,7 @@ class PandaControls(object):
             dq = self.arm.GetJointVelocities()
             coriolis = self.arm.GetCoriolosMatrix(q, dq)
 
-            for i in xrange(N):
+            for i in range(N):
                 tau_d[i] = coriolis[i] + (stiffness[i,i]*(q_d[i] - q[i])) + (damping[i,i]*(dq_d[i] - dq[i]))
 
             tau_cmd = self.clampTorque(tau_d)
@@ -220,14 +220,14 @@ class PandaControls(object):
             time.sleep(0.01)
 
     def positionControlPath(self, path):
-        for i in xrange(len(path)):
+        for i in range(len(path)):
             self.positionControl(path[i])
 
     def jointImpedancePath(self, path, stiffness_params):
-        for i in xrange(len(path)):
+        for i in range(len(path)):
             self.jointImpedance(path[i], stiffness_params)
 
     def cartImpedancePath(self,path, stiffness_params):
-        for i in xrange(len(path)):
+        for i in range(len(path)):
             self.cartImpedance(path[i], stiffness_params)
 

@@ -150,7 +150,7 @@ class CartImpedPath(object):
         if numpy.linalg.norm(numpy.subtract(q, self.start_q)) > 1e-3:
             raise IOError("Incorrect starting position")
         # Going to fake cartesian impedance control
-        for i in xrange(len(self.ee_path)):
+        for i in range(len(self.ee_path)):
             q = self.manip.ComputeIK(self.ee_path[i], seed_q=q)
             self.manip.SetJointValues(q)
             time.sleep(self.timestep)

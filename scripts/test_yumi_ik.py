@@ -33,7 +33,7 @@ def GeodesicDistance(t1, t2, r=1.0):
 def randomConfiguration(yumi):
     (lower, upper) = yumi.right_arm.GetJointLimits() 
     dofs = numpy.zeros(len(lower))
-    for i in xrange(len(lower)):
+    for i in range(len(lower)):
         dofs[i] = random.uniform(lower[i], upper[i])
     return dofs
 
@@ -56,7 +56,7 @@ def main():
     qs = [[0, 0, 0, 0, 0, 0, 0],
           [1, 0, 0, 0, 0, 0, 0]]
 
-    for i in xrange(100):
+    for i in range(100):
         q = randomConfiguration(yumi)
         pose = yumi.right_arm.ComputeFK(q)
         full_solved_q = yumi.right_arm.ComputeIK(pb_robot.geometry.pose_from_tform(pose))  # edit ComputeIK
