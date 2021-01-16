@@ -64,12 +64,12 @@ class ViseGrasp(object):
         else:
             # Object not grabbed, need to grab
             #self.hand.Close()
-            self.hand.MoveTo(-0.04, 0.04) 
+            self.hand.MoveTo(-0.04, 0.04)
             self.hand.Grab(self.body, self.grasp_objF)
     def execute(self, realRobot=None):
         # This is a bad work-around
         realhand = pb_robot.wsg50_hand.WSG50HandReal()
-        if realhand.get_width < realhand.openValue: 
+        if realhand.get_width < realhand.openValue:
             realhand.open()
         else:
             realhand.grasp(80, self.N)
@@ -95,7 +95,7 @@ class JointSpacePath(object):
         self.manip = manip
         self.path = path
     def simulate(self):
-        self.manip.ExecutePositionPath(self.path)
+        self.manip.ExecutePositionPath(self.path, 0.25)
     def execute(self, realRobot=None):
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
@@ -138,7 +138,7 @@ class FrankaQuat(object):
 
 class CartImpedPath(object):
     def __init__(self, manip, start_q, ee_path, stiffness=None, timestep=0.1):
-        if stiffness is None: 
+        if stiffness is None:
             stiffness = [400, 400, 400, 40, 40, 40]
         self.manip = manip
         self.ee_path = ee_path
@@ -159,7 +159,7 @@ class CartImpedPath(object):
         sim_start = self.ee_path[0, 0:3, 3]
         real_start = realRobot.endpoint_pose()['position']
         sim_real_diff = numpy.subtract(sim_start, real_start)
-        
+
         poses = []
         for transform in self.ee_path:
             #quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
