@@ -7,6 +7,17 @@ from .panda_controls import PandaControls
 
 from pb_robot.ikfast.ikfast import closest_inverse_kinematics, ikfast_inverse_kinematics
 
+CLIENT = 0
+
+def get_client(client=None):
+    if client is None:
+        return CLIENT
+    return client
+
+def set_client(client):
+    global CLIENT
+    CLIENT = client
+
 class Panda(pb_robot.body.Body):
     '''Create all the functions for controlling the Panda Robot arm'''
     def __init__(self):
@@ -218,7 +229,12 @@ class Manipulator(object):
                 # Dont want to check adjancent links or link 8 (fake hand joint)
                 if (abs(linkI-linkJ) < 2) or (linkI == 8) or (linkJ == 8):
                     break
-                pts = p.getClosestPoints(self.__robot.id, self.__robot.id, distance=0.01, linkIndexA=linkI, linkIndexB=linkJ)
+                pts = p.getClosestPoints(self.__robot.id, 
+                                         self.__robot.id, 
+                                         distance=0.01, 
+                                         linkIndexA=linkI, 
+                                         linkIndexB=linkJ,
+                                         physicsClientId=CLIENT)
                 if len(pts) > 0:
                     return False 
         return True
@@ -247,7 +263,11 @@ class Manipulator(object):
         q_plus = numpy.append(q, [0, 0]).tolist()
         dq_plus = numpy.append(dq, [0, 0]).tolist()
         ddq = [0.0]*9
-        coriolis = p.calculateInverseDynamics(self.__robot.id, q_plus, dq_plus, ddq)[0:7]
+        coriolis = p.calculateInverseDynamics(self.__robot.id, 
+                                              q_plus, 
+                                              dq_plus, 
+                                              ddq,
+                                              physicsClientId=CLIENT)[0:7]
         return coriolis
 
     def InsideTorqueLimits(self, q, forces):
@@ -273,7 +293,9 @@ class Manipulator(object):
     def GetFTWristReading(self):
         '''Read the 6D force torque simulated sensor at the wrist
         @return 6D tuple of forces and torques'''
-        return p.getJointState(self.__robot.id, self.ft_joint.jointID)[2]
+        return p.getJointState(self.__robot.id, 
+                               self.ft_joint.jointID,
+                               physicsClientId=CLIENT)[2]
 
     def ExecutePositionPath(self, path, timestep=0.05):
         '''Simulate a configuration space path by incrementally setting the 
