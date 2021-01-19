@@ -35,17 +35,14 @@ def get_collision_fn(body, joints, obstacles, attachments, self_collisions, cust
 
     def collision_fn(q):
         if not pb_robot.helper.all_between(lower_limits, q, upper_limits):
-            print('Joint limit exceeded.')
             return True
         #body.set_joint_positions(joints, q) 
         body.SetJointValues(q)
         for link1, link2 in check_link_pairs:
             if pairwise_link_collision(body._Manipulator__robot, link1, body._Manipulator__robot, link2):
-                print('Self link collision.')
                 return True
         for body1, body2 in check_body_pairs:
             if pairwise_collision(body1, body2, **kwargs): 
-                print('Body Collision:', body1, body2)
                 return True
         return False
     return collision_fn, check_link_pairs, unfrozen
