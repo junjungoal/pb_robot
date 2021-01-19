@@ -31,7 +31,7 @@ class BodyGrasp(object):
         self.r = r
         self.mu = mu
         self.N = N
-    def simulate(self):
+    def simulate(self, timestep):
         if self.body.get_name() in self.manip.grabbedObjects:
             # Object grabbed, need to release
             self.manip.hand.Open()
@@ -94,8 +94,8 @@ class JointSpacePath(object):
     def __init__(self, manip, path):
         self.manip = manip
         self.path = path
-    def simulate(self):
-        self.manip.ExecutePositionPath(self.path, 0.25)
+    def simulate(self, timestep):
+        self.manip.ExecutePositionPath(self.path, timestep=timestep)
     def execute(self, realRobot=None):
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
@@ -107,8 +107,8 @@ class MoveToTouch(object):
         self.manip = manip
         self.start = start
         self.end = end
-    def simulate(self):
-        self.manip.ExecutePositionPath([self.start, self.end])
+    def simulate(self, timestep):
+        self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep)
     def execute(self, realRobot=None):
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
@@ -118,9 +118,9 @@ class MoveFromTouch(object):
     def __init__(self, manip, end):
         self.manip = manip
         self.end = end
-    def simulate(self):
+    def simulate(self, timestep):
         start = self.manip.GetJointValues()
-        self.manip.ExecutePositionPath([start, self.end])
+        self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
     def execute(self, realRobot=None):
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
