@@ -24,24 +24,28 @@ ContactResult = namedtuple('ContactResult', ['contactFlag', 'bodyUniqueIdA', 'bo
 
 def get_collision_fn(body, joints, obstacles, attachments, self_collisions, custom_limits={}, check_link_pairs=None, unfrozen=None, **kwargs):
     if check_link_pairs is None:
-        check_link_pairs = get_self_link_pairs(body, joints) if self_collisions else []
+        check_link_pairs = get_self_link_pairs(body._Manipulator__robot, joints) if self_collisions else []
     if unfrozen is None:
-        unfrozen = get_moving_links(body, joints)
+        unfrozen = get_moving_links(body._Manipulator__robot, joints)
     moving_links = frozenset(unfrozen)
 
-    moving_bodies = [(body, moving_links)] + attachments
+    moving_bodies = [(body._Manipulator__robot, moving_links)] + attachments
     check_body_pairs = list(product(moving_bodies, obstacles))  
-    lower_limits, upper_limits = body.get_custom_limits(joints, custom_limits)
+    lower_limits, upper_limits = body._Manipulator__robot.get_custom_limits(joints, custom_limits)
 
     def collision_fn(q):
         if not pb_robot.helper.all_between(lower_limits, q, upper_limits):
+            print('Joint limit exceeded.')
             return True
-        body.set_joint_positions(joints, q) 
+        #body.set_joint_positions(joints, q) 
+        body.SetJointValues(q)
         for link1, link2 in check_link_pairs:
-            if pairwise_link_collision(body, link1, body, link2):
+            if pairwise_link_collision(body._Manipulator__robot, link1, body._Manipulator__robot, link2):
+                print('Self link collision.')
                 return True
         for body1, body2 in check_body_pairs:
             if pairwise_collision(body1, body2, **kwargs): 
+                print('Body Collision:', body1, body2)
                 return True
         return False
     return collision_fn, check_link_pairs, unfrozen

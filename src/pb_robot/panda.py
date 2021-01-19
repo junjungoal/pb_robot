@@ -206,7 +206,7 @@ class Manipulator(object):
             obstacles = [b for b in pb_robot.utils.get_bodies() if self.get_name() not in b.get_name() and b.get_name() not in self.grabbedObjects.keys()]
         attachments = [g for g in self.grabbedObjects.values()]
 
-        collisionfn, self.check_link_pairs, self.moving_links = pb_robot.collisions.get_collision_fn(self.__robot, self.joints, obstacles, 
+        collisionfn, self.check_link_pairs, self.moving_links = pb_robot.collisions.get_collision_fn(self, self.joints, obstacles, 
                                                                                            attachments, self_collisions, check_link_pairs=self.check_link_pairs,
                                                                                            unfrozen=self.moving_links)
 
