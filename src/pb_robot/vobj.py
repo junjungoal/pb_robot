@@ -91,12 +91,14 @@ class BodyWrench(object):
         return 'w{}'.format(id(self) % 1000)
 
 class JointSpacePath(object):
-    def __init__(self, manip, path):
+    def __init__(self, manip, path, speed=0.3):
         self.manip = manip
         self.path = path
+        self.speed = speed
     def simulate(self, timestep):
         self.manip.ExecutePositionPath(self.path, timestep=timestep)
     def execute(self, realRobot=None):
+        realRobot.set_joint_position_speed(self.speed)
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
     def __repr__(self):
@@ -115,13 +117,15 @@ class MoveToTouch(object):
         return 'moveToTouch{}'.format(id(self) % 1000)
 
 class MoveFromTouch(object):
-    def __init__(self, manip, end):
+    def __init__(self, manip, end, speed=0.3):
         self.manip = manip
         self.end = end
+        self.speed = speed
     def simulate(self, timestep):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
     def execute(self, realRobot=None):
+        realRobot.set_joint_position_speed(self.speed)
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveFromTouch{}'.format(id(self) % 1000)
