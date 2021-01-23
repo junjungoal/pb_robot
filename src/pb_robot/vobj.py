@@ -1,7 +1,7 @@
 import pb_robot
 import numpy
 import time
-import quaternion
+from pb_robot.transformations import quaternion_from_matrix
 
 class BodyPose(object):
     def __init__(self, body, pose):
@@ -167,7 +167,7 @@ class CartImpedPath(object):
         poses = []
         for transform in self.ee_path:
             #quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
-            quat = quaternion.from_rotation_matrix(transform[0:3,0:3])
+            quat = quaternion_from_matrix(transform[0:3,0:3])
             xyz = transform[0:3, 3] - sim_real_diff
             poses += [{'position': xyz, 'orientation': quat}]
         realRobot.execute_cart_impedance_traj(poses, stiffness=self.stiffness)
