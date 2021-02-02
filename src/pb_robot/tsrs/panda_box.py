@@ -326,7 +326,7 @@ def grasp(box,
                                      TSR=tsr_new)
         rotated_chain_list += [ tsr_chain_new ]
 
-    return chain_list# + rotated_chain_list
+    return chain_list + rotated_chain_list
 
 def bar_grasp(box, push_distance=0.0,
                 width_offset=0.0,
