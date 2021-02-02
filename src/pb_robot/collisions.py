@@ -32,17 +32,16 @@ def get_collision_fn(body, joints, obstacles, attachments, self_collisions, cust
     moving_bodies = [(body._Manipulator__robot, moving_links)] + attachments
     check_body_pairs = list(product(moving_bodies, obstacles))  
     lower_limits, upper_limits = body._Manipulator__robot.get_custom_limits(joints, custom_limits)
-
     def collision_fn(q):
         if not pb_robot.helper.all_between(lower_limits, q, upper_limits):
             return True
         #body.set_joint_positions(joints, q) 
         body.SetJointValues(q)
-        for link1, link2 in check_link_pairs:
-            if pairwise_link_collision(body._Manipulator__robot, link1, body._Manipulator__robot, link2):
-                return True
         for body1, body2 in check_body_pairs:
             if pairwise_collision(body1, body2, **kwargs): 
+                return True
+        for link1, link2 in check_link_pairs:
+            if pairwise_link_collision(body._Manipulator__robot, link1, body._Manipulator__robot, link2):
                 return True
         return False
     return collision_fn, check_link_pairs, unfrozen
@@ -116,6 +115,7 @@ def any_link_pair_collision(body1, links1, body2, links2=None, **kwargs):
     if links2 is None:
         links2 = body2.all_links
     for link1, link2 in product(links1, links2):
+        #print(link1.get_link_name(), link2.get_link_name())
         if (body1 == body2) and (link1 == link2):
             continue
         if pairwise_link_collision(body1, link1, body2, link2, **kwargs):
