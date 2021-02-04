@@ -3,7 +3,7 @@ import numpy
 import time
 import quaternion
 import sys
-from tamp.misc import ComputePrePose
+from pb_robot.tsrs.panda_box import ComputePrePose
 
 class BodyPose(object):
     def __init__(self, body, pose):
@@ -116,18 +116,16 @@ class MoveToTouch(object):
         self.block = block
         self.grasp = grasp
 
-        if self.use_wrist_camera:
-            import rospy
-            from panda_vision.srv import GetBlockPosesWrist
-            rospy.wait_for_service('get_block_poses_wrist')
-            self._get_block_poses_wrist = rospy.ServiceProxy('get_block_poses_wrist', GetBlockPosesWrist)
-
     def simulate(self, timestep):
         self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep)
 
     def get_pose_from_wrist(self):
+        import rospy
+        from panda_vision.srv import GetBlockPosesWrist
+        rospy.wait_for_service('get_block_poses_wrist')
+        _get_block_poses_wrist = rospy.ServiceProxy('get_block_poses_wrist', GetBlockPosesWrist)
         try:
-            poses = self._get_block_poses_wrist().poses
+            poses = _get_block_poses_wrist().poses
         except:
             print('Service call to get block poses failed during approach. Exiting.')
             sys.exit()
