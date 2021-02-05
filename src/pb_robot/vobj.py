@@ -168,9 +168,9 @@ class MoveToTouch(object):
         if self.use_wrist_camera:
             pose = self.get_pose_from_wrist()
             self.start, self.end = self.recalculate_qs(realRobot, pose)
-            input('Move to corrected approach?')
+            print('Moving to corrected approach.')
             realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
-        input('Move to corrected grasp?')
+        print('Moving to corrected grasp.')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
