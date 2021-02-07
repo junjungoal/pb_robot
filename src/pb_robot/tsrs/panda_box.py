@@ -3,7 +3,24 @@ import pb_robot
 from tsr.tsrlibrary import TSRFactory
 from tsr.tsr import TSR, TSRChain
 
-def grasp(box, 
+def ComputePrePose(og_pose, directionVector, approach_frame, relation=None):
+    backup = numpy.eye(4)
+    backup[0:3, 3] = directionVector
+
+    if approach_frame == 'gripper':
+        # This computes the relative pose (directionVector is in the gripper frame, -z it outwards)
+        prepose = numpy.dot(og_pose, backup)
+    elif approach_frame == 'global':
+        # This interprets the directionVector as being in the global z direction.
+        prepose = numpy.dot(backup, og_pose)
+    else:
+        raise NotImplementedError()
+
+    if relation is not None:
+        prepose = numpy.dot(prepose, relation)
+    return prepose
+    
+def grasp(box,
           push_distance=0.0,
           width_offset=0.0,
           add_slanted_grasps=True,
@@ -12,7 +29,7 @@ def grasp(box,
     @param box The box to grasp
     @param push_distance The distance to push before grasping
     """
-    gripper_width = 0.05  # TODO: Verify this number.
+    gripper_width = 0.08  # TODO: Verify this number.
 
     dimensions = box.get_dimensions()
     ee_to_palm_distance = 0.098
@@ -74,7 +91,7 @@ def grasp(box,
                 Tw_e = Tw_e_front1.copy()
                 Tw_e[:, 3] = numpy.array([block_length+d, 0., -numpy.sign(rot)*d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front1[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -86,7 +103,7 @@ def grasp(box,
                 Tw_e = Tw_e_front2.copy()
                 Tw_e[:, 3] = numpy.array([-block_length - d, 0., -numpy.sign(rot)*d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front2[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -100,7 +117,7 @@ def grasp(box,
                 Tw_e = Tw_e_front3.copy()
                 Tw_e[:, 3] = numpy.array([block_length+d, -numpy.sign(rot)*d, 0., 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front3[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -112,7 +129,7 @@ def grasp(box,
                 Tw_e = Tw_e_front4.copy()
                 Tw_e[:, 3] = numpy.array([-block_length-d, numpy.sign(rot)*d, 0., 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front4[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -168,7 +185,7 @@ def grasp(box,
                 Tw_e = Tw_e_side1.copy()
                 Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*d, 0, block_length+d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side1[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -179,7 +196,7 @@ def grasp(box,
                 Tw_e = Tw_e_side2.copy()
                 Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*d, 0, -block_length-d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side2[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -193,7 +210,7 @@ def grasp(box,
                 Tw_e = Tw_e_side3.copy()
                 Tw_e[:, 3] = numpy.array([0, -numpy.sign(rot)*d, block_length+d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side3[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -204,11 +221,11 @@ def grasp(box,
                 Tw_e = Tw_e_side4.copy()
                 Tw_e[:, 3] = numpy.array([0, numpy.sign(rot)*d, -block_length-d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side4[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-        
+
     # ----- Faces perpendicular to the y-axis -----
     lateral_offset = ee_to_palm_distance + dimensions[1]/2
     Tw_e_bottom1 = numpy.array([[ 0., -1.,  0., 0.],
@@ -269,7 +286,7 @@ def grasp(box,
                 Tw_e = Tw_e_bottom1.copy()
                 Tw_e[:, 3] = numpy.array([0, block_length+d, -numpy.sign(rot)*d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom1[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -280,7 +297,7 @@ def grasp(box,
                 Tw_e = Tw_e_bottom2.copy()
                 Tw_e[:, 3] = numpy.array([0, -block_length-d, -numpy.sign(rot)*d, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom2[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -294,7 +311,7 @@ def grasp(box,
                 Tw_e = Tw_e_bottom3.copy()
                 Tw_e[:, 3] = numpy.array([numpy.sign(rot)*d, block_length+d, 0, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom3[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -305,7 +322,7 @@ def grasp(box,
                 Tw_e = Tw_e_bottom4.copy()
                 Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*d, -block_length-d, 0, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom4[0:3,0:3]@rot_y45
-                
+
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
@@ -326,7 +343,7 @@ def grasp(box,
                                      TSR=tsr_new)
         rotated_chain_list += [ tsr_chain_new ]
 
-    return chain_list# + rotated_chain_list
+    return chain_list + rotated_chain_list
 
 def bar_grasp(box, push_distance=0.0,
                 width_offset=0.0,
@@ -335,17 +352,17 @@ def bar_grasp(box, push_distance=0.0,
     @param box The box to grasp
     @param push_distance The distance to push before grasping
     """
-    ee_to_palm_distance = 0.098 
+    ee_to_palm_distance = 0.098
     lateral_offset=ee_to_palm_distance + push_distance
     epsilon = 0.01
- 
+
     T0_w = box.get_transform()
     chain_list = []
 
     # Base of box (opposite side of head)
     Tw_e_front1 = numpy.array([[ 0., 0., -1.,  lateral_offset],
                                [-1., 0.,  0., 0.0],
-                               [ 0., 1.,  0., 0.0], 
+                               [ 0., 1.,  0., 0.0],
                                [ 0., 0.,  0., 1.]])
 
     Tw_e_front2 = numpy.array([[ 0.,  0.,  1., -lateral_offset],
@@ -353,19 +370,19 @@ def bar_grasp(box, push_distance=0.0,
                                [ 0.,  1.,  0., 0.0],
                                [ 0.,  0.,  0., 1.]])
     Bw_yz = numpy.zeros((6,2))
-    Bw_yz[0, :] = [-epsilon, epsilon] 
-    Bw_yz[1, :] = [-0.2, 0.2] 
+    Bw_yz[0, :] = [-epsilon, epsilon]
+    Bw_yz[1, :] = [-0.2, 0.2]
     front_tsr1 = TSR(T0_w = T0_w, Tw_e = Tw_e_front1, Bw = Bw_yz)
     grasp_chain_front1 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=front_tsr1)
-    chain_list += [ grasp_chain_front1 ] 
+    chain_list += [ grasp_chain_front1 ]
     front_tsr2 = TSR(T0_w = T0_w, Tw_e = Tw_e_front2, Bw = Bw_yz)
     grasp_chain_front2 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=front_tsr2)
     chain_list += [ grasp_chain_front2 ]
 
- 
-    # Top and Bottom sides 
+
+    # Top and Bottom sides
     Tw_e_side3 = numpy.array([[ 0., 1.,  0., 0.0],
                               [ 1., 0.,  0., 0.0],
                               [ 0., 0., -1., lateral_offset],
@@ -385,7 +402,7 @@ def bar_grasp(box, push_distance=0.0,
     side_tsr4 = TSR(T0_w = T0_w, Tw_e = Tw_e_side4, Bw = Bw_side)
     grasp_chain_side4 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=side_tsr4)
-    chain_list += [ grasp_chain_side4 ] 
+    chain_list += [ grasp_chain_side4 ]
 
 
     # Two side faces
