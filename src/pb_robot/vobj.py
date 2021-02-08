@@ -4,6 +4,7 @@ import time
 from pb_robot.transformations import quaternion_from_matrix
 import sys
 from pb_robot.tsrs.panda_box import ComputePrePose
+from pb_robot.planners.util import cspaceLength
 
 class BodyPose(object):
     def __init__(self, body, pose):
@@ -112,7 +113,7 @@ class MoveToTouch(object):
         self.start = start
         self.end = end
         self.use_wrist_camera = use_wrist_camera
-        self.block_name = block.get_name()
+        self.block_name = block.readableName
         self.block = block
         self.grasp = grasp
 
@@ -145,7 +146,7 @@ class MoveToTouch(object):
         different from the old one. """
         obj_worldF = pb_robot.geometry.tform_from_pose(pose)
         grasp_worldF = numpy.dot(obj_worldF, self.grasp.grasp_objF)
-        approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.125], 'gripper')
+        approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.08], 'gripper')
 
         for _ in range(3):
             start_q = realRobot.convertToList(realRobot.joint_angles())
@@ -171,6 +172,9 @@ class MoveToTouch(object):
             print('Moving to corrected approach.')
             realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
         print('Moving to corrected grasp.')
+        length = cspaceLength([self.start, self.end])
+        print('CSpaceLength:', length)
+        input('Move?')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
