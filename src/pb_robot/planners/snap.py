@@ -9,12 +9,12 @@ from . import util
 class SnapPlanner(object):
     '''Snap Planner - maintaining class structure because may be useful later when all formatting'''
     def __init__(self):
-        self.checkRate = 0.1
+        self.checkRate = 0.05
 
     def PlanToConfiguration(self, manip, start_q, goal_q, obstacles=None):
         '''Plan from one joint location (start) to another (goal_config)
-        optional constraints. 
-        @param manip Robot arm to plan with 
+        optional constraints.
+        @param manip Robot arm to plan with
         @param start_q Joint pose to start from
         @param goal_q Joint pose to plan to
         @return joint trajectory or None if plan failed'''
@@ -26,6 +26,10 @@ class SnapPlanner(object):
         # Check intermediate points for collisions
         cdist = util.cspaceLength([start_q, goal_q])
         count = int(cdist / self.checkRate) # Check every 0.1 distance (a little arbitrary)
+        # This should be a short path.
+        if cdist > 1.5:
+            print('Too long:', cdist)
+            return None
 
         # linearly interpolate between that at some step size and check all those points
         interp = [numpy.linspace(start_q[i], goal_q[i], count+1).tolist() for i in range(len(start_q))]
