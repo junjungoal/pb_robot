@@ -23,6 +23,7 @@ def ComputePrePose(og_pose, directionVector, approach_frame, relation=None):
 def grasp(box,
           push_distance=0.0,
           width_offset=0.0,
+          add_orthogonal_grasps=True,
           add_slanted_grasps=True,
           **kw_args):
     """
@@ -38,6 +39,7 @@ def grasp(box,
     p0_w = box.get_base_link_pose()
     T0_w = pb_robot.geometry.tform_from_pose(p0_w)
     chain_list = []
+    slanted_chain_list = []
 
     # ----- Faces perpendicular to the x-axis -----
     # 1,2 are parallel to the floor (gripper aligned the y-dimension of block).
@@ -93,7 +95,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_front1[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             # Angled grasp: Tw_e_side2.
             for rot in [-numpy.pi/4, numpy.pi/4]:
@@ -105,7 +107,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_front2[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[2] < gripper_width:
         chain_list += [grasp_chain_front3, grasp_chain_front4]
@@ -119,7 +121,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_front3[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             # Angled grasp: Tw_e_side2.
             for rot in [-numpy.pi/4, numpy.pi/4]:
@@ -131,7 +133,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_front4[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
 
     # ----- Faces perpendicular to the z-axis -----
@@ -187,7 +189,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_side1[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             for rot in [-numpy.pi/4, numpy.pi/4]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -198,7 +200,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_side2[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[0] < gripper_width:
         chain_list += [grasp_chain_side3, grasp_chain_side4]
@@ -212,7 +214,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_side3[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             for rot in [-numpy.pi/4, numpy.pi/4]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -223,7 +225,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_side4[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
 
     # ----- Faces perpendicular to the y-axis -----
@@ -288,7 +290,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_bottom1[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             for rot in [-numpy.pi/4, numpy.pi/4]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -299,7 +301,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_bottom2[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[2] < gripper_width:
         chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
@@ -313,7 +315,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_bottom3[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             for rot in [-numpy.pi/4, numpy.pi/4]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -324,7 +326,7 @@ def grasp(box,
                 Tw_e[0:3, 0:3] = Tw_e_bottom4[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
-                chain_list.append(TSRChain(sample_start=False, sample_goal=True,
+                slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
 
     # Each chain in the list can also be rotated by 180 degrees around z
@@ -343,7 +345,16 @@ def grasp(box,
                                      TSR=tsr_new)
         rotated_chain_list += [ tsr_chain_new ]
 
-    return chain_list + rotated_chain_list
+    chain_list += rotated_chain_list
+
+    final_chain_list = []
+    if add_slanted_grasps:
+        final_chain_list += slanted_chain_list
+    if add_orthogonal_grasps:
+        final_chain_list += chain_list
+
+    return final_chain_list
+
 
 def bar_grasp(box, push_distance=0.0,
                 width_offset=0.0,
