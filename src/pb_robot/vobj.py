@@ -146,7 +146,7 @@ class MoveToTouch(object):
         different from the old one. """
         obj_worldF = pb_robot.geometry.tform_from_pose(pose)
         grasp_worldF = numpy.dot(obj_worldF, self.grasp.grasp_objF)
-        approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.08], 'gripper')
+        approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.1], 'gripper')
 
         for _ in range(3):
             start_q = realRobot.convertToList(realRobot.joint_angles())
@@ -165,6 +165,8 @@ class MoveToTouch(object):
             print(grasp_worldF)
             return q_approach, q_grasp
 
+        print('Could not find adjusted IK solution.')
+
     def execute(self, realRobot=None):
         if self.use_wrist_camera:
             pose = self.get_pose_from_wrist()
@@ -174,7 +176,6 @@ class MoveToTouch(object):
         print('Moving to corrected grasp.')
         length = cspaceLength([self.start, self.end])
         print('CSpaceLength:', length)
-        input('Move?')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
@@ -212,7 +213,7 @@ class CartImpedPath(object):
         self.start_q = start_q
         self.stiffness = stiffness
         self.timestep = timestep
-    def simulate(self):
+    def simulate(self, timestep):
         q = self.manip.GetJointValues()
         if numpy.linalg.norm(numpy.subtract(q, self.start_q)) > 1e-3:
             raise IOError("Incorrect starting position")
@@ -226,7 +227,7 @@ class CartImpedPath(object):
         sim_start = self.ee_path[0, 0:3, 3]
         real_start = realRobot.endpoint_pose()['position']
         sim_real_diff = numpy.subtract(sim_start, real_start)
-
+        input('Cartesian path?')
         poses = []
         for transform in self.ee_path:
             #quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))
