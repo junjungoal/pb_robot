@@ -24,6 +24,7 @@ def grasp(box,
           push_distance=0.0,
           width_offset=0.0,
           add_slanted_grasps=True,
+          add_orthogonal_grasps=True,
           **kw_args):
     """
     @param box The box to grasp
@@ -82,7 +83,8 @@ def grasp(box,
     # Check that the blocks are small enough to support grasps along that dimension.
     block_length = dimensions[0]/2
     if dimensions[1] < gripper_width:
-        #chain_list += [grasp_chain_front1, grasp_chain_front2]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_front1, grasp_chain_front2]
         # Angled grasp: Tw_e_side1.
         if add_slanted_grasps:
             for rot in [-angle, angle]:
@@ -109,7 +111,8 @@ def grasp(box,
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[2] < gripper_width:
-        #chain_list += [grasp_chain_front3, grasp_chain_front4]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_front3, grasp_chain_front4]
         if add_slanted_grasps:
             for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -177,7 +180,8 @@ def grasp(box,
                                  constrain=False, TSR=side_tsr4)
     block_length = dimensions[2]/2
     if dimensions[1] < gripper_width:
-        #chain_list += [grasp_chain_side1, grasp_chain_side2]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_side1, grasp_chain_side2]
         if add_slanted_grasps:
             for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -202,7 +206,8 @@ def grasp(box,
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[0] < gripper_width:
-        #chain_list += [grasp_chain_side3, grasp_chain_side4]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_side3, grasp_chain_side4]
         if add_slanted_grasps:
             for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -278,7 +283,8 @@ def grasp(box,
                                   constrain=False, TSR=bottom_tsr4)
     block_length = dimensions[1]/2
     if dimensions[0] < gripper_width:
-        #chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
         if add_slanted_grasps:
             for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
@@ -303,7 +309,8 @@ def grasp(box,
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[2] < gripper_width:
-        #chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
         if add_slanted_grasps:
             for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
