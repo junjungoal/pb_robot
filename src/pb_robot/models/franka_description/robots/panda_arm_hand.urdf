@@ -263,7 +263,7 @@
       <origin rpy="1.57079632679 0 1.57079632679" xyz="0.0043 -0.0175 0"/>
       <geometry>
         <box size="0.09 0.025 0.02505"/> 
-        <!--<mesh filename="package://franka_description/meshes/d435.dae"/>-->
+        <!-- <mesh filename="package://franka_description/meshes/d435.dae"/> -->
       </geometry>
     </visual>
     <collision>
@@ -281,7 +281,7 @@
   </link>
   
   <joint name="camera_joint" type="fixed">
-    <origin rpy="-0.00708276 -1.03952579  3.11958769" xyz=" 0.09217904 -0.00621438 -0.0266488"/>
+    <origin rpy="-0.06882249 -1.40188346 -3.07369552" xyz="0.02680958 0.00117613 0.04814077"/>
     <parent link="panda_hand"/>
     <child link="camera_bottom_screw_frame"/>
   </joint>
