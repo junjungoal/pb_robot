@@ -31,6 +31,7 @@ def grasp(box,
     """
     gripper_width = 0.08  # TODO: Verify this number.
 
+    angle = numpy.deg2rad(45)
     dimensions = box.get_dimensions()
     ee_to_palm_distance = 0.098
     lateral_offset = ee_to_palm_distance + dimensions[0]/2
@@ -84,7 +85,7 @@ def grasp(box,
         #chain_list += [grasp_chain_front1, grasp_chain_front2]
         # Angled grasp: Tw_e_side1.
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -96,7 +97,7 @@ def grasp(box,
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             # Angled grasp: Tw_e_side2.
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -110,7 +111,7 @@ def grasp(box,
     if dimensions[2] < gripper_width:
         #chain_list += [grasp_chain_front3, grasp_chain_front4]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -122,7 +123,7 @@ def grasp(box,
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             # Angled grasp: Tw_e_side2.
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -178,7 +179,7 @@ def grasp(box,
     if dimensions[1] < gripper_width:
         #chain_list += [grasp_chain_side1, grasp_chain_side2]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -189,7 +190,7 @@ def grasp(box,
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -203,7 +204,7 @@ def grasp(box,
     if dimensions[0] < gripper_width:
         #chain_list += [grasp_chain_side3, grasp_chain_side4]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -214,7 +215,7 @@ def grasp(box,
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -279,7 +280,7 @@ def grasp(box,
     if dimensions[0] < gripper_width:
         #chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -290,7 +291,7 @@ def grasp(box,
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -304,7 +305,7 @@ def grasp(box,
     if dimensions[2] < gripper_width:
         #chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
@@ -315,7 +316,7 @@ def grasp(box,
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 d = ee_to_palm_distance/numpy.sqrt(2)
