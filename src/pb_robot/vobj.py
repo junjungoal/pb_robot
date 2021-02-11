@@ -128,16 +128,16 @@ class MoveToTouch(object):
         try:
             poses = _get_block_poses_wrist().poses
         except:
-            print('Service call to get block poses failed during approach. Exiting.')
+            print('[MoveToTouch]: Service call to get block poses failed during approach. Exiting.')
             sys.exit()
         for named_pose in poses:
             if named_pose.block_id in self.block_name:
                 pose = named_pose.pose.pose
                 position = (pose.position.x, pose.position.y, pose.position.z) # self.block.get_dimensions()[2]/2.
                 orientation = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
-                print('Block estimated position:', position)
+                print('[MoveToTouch]: Block estimated position:', position)
                 return (position, orientation)
-        print('Desired block not found. Exiting.')
+        print('[MoveToTouch]: Desired block not found. Exiting.')
         sys.exit()
 
     def recalculate_qs(self, realRobot, pose):
@@ -148,34 +148,41 @@ class MoveToTouch(object):
         grasp_worldF = numpy.dot(obj_worldF, self.grasp.grasp_objF)
         approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.1], 'gripper')
 
-        for _ in range(3):
+        for _ in range(5):
             start_q = realRobot.convertToList(realRobot.joint_angles())
             start_tform = self.manip.ComputeFK(start_q)
             q_approach = self.manip.ComputeIK(approach_tform, seed_q=start_q)
             if (q_approach is None): continue
             q_grasp = self.manip.ComputeIK(grasp_worldF, seed_q=q_approach)
             if (q_grasp is None): continue
-            print('Start Transform')
+
+            adjust_dist = cspaceLength([start_q, q_approach])
+            approach_dist = cspaceLength([q_approach, q_grasp])
+            # This should be a short path.
+            if adjust_dist > 1.5 or approach_dist > 1.5:
+                print(f'[MoveToTouch]: Trajectory too long. Adjust: {adjust_dist}\t Approach: {approach_dist}')
+                continue
+                
+            print('[MoveToTouch]: Start Transform')
             print(start_tform)
 
-            print('Approach Transform')
+            print('[MoveToTouch]: Approach Transform')
             print(approach_tform)
 
-            print('Grasp Transform')
+            print('[MoveToTouch]: Grasp Transform')
             print(grasp_worldF)
             return q_approach, q_grasp
 
-        print('Could not find adjusted IK solution.')
+        print('[MoveToTouch]: Could not find adjusted IK solution.')
+        sys.exit(0)
 
     def execute(self, realRobot=None):
         if self.use_wrist_camera:
             pose = self.get_pose_from_wrist()
             self.start, self.end = self.recalculate_qs(realRobot, pose)
-            print('Moving to corrected approach.')
+            print('[MoveToTouch]: Moving to corrected approach.')
             realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
-        print('Moving to corrected grasp.')
-        length = cspaceLength([self.start, self.end])
-        print('CSpaceLength:', length)
+        print('[MoveToTouch]: Moving to corrected grasp.')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
