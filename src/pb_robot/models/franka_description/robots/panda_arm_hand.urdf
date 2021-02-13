@@ -196,7 +196,7 @@
       </geometry>
     </collision>
   </link>
-  <link name="panda_leftfinger">
+  <!-- <link name="panda_leftfinger">
     <visual>
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
@@ -206,11 +206,46 @@
     <collision>
       <geometry>
         <mesh filename="package://franka_description/meshes/collision/finger.stl"/>
+      </geometry>
+    </collision>
+  </link> -->
+  <link name="panda_leftfinger">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.01 0.03"/>
+      <geometry>
+        
+        <!-- <mesh filename="package://franka_description/meshes/visual/finger.dae"/> -->
+        <box size="0.025 0.025 0.05"/> 
+      </geometry>
+      <material name="panda_grey"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.01 0.03"/>
+      <geometry>
+        <box size="0.025 0.025 0.05"/> 
+        <!-- <mesh filename="package://franka_description/meshes/collision/finger.stl"/> -->
       </geometry>
     </collision>
   </link>
   <link name="panda_rightfinger">
     <visual>
+      <origin rpy="0 0 0" xyz="0 -0.01 0.03"/>
+      <geometry>
+        <!-- <mesh filename="package://franka_description/meshes/visual/finger.dae"/> -->
+        <box size="0.025 0.025 0.05"/> 
+      </geometry>
+      <material name="panda_grey"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 -0.01 0.03"/>
+      <geometry>
+        <!-- <mesh filename="package://franka_description/meshes/collision/finger.stl"/> -->
+        <box size="0.025 0.025 0.05"/> 
+      </geometry>
+    </collision>
+  </link>
+  <!-- <link name="panda_rightfinger">
+    <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
@@ -223,7 +258,7 @@
         <mesh filename="package://franka_description/meshes/collision/finger.stl"/>
       </geometry>
     </collision>
-  </link>
+  </link> -->
   <joint name="panda_finger_joint1" type="prismatic">
     <parent link="panda_hand"/>
     <child link="panda_leftfinger"/>
