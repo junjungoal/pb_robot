@@ -94,13 +94,14 @@ class BodyWrench(object):
         return 'w{}'.format(id(self) % 1000)
 
 class JointSpacePath(object):
-    def __init__(self, manip, path, speed=0.3):
+    def __init__(self, manip, path, speed=0.5):
         self.manip = manip
         self.path = path
         self.speed = speed
     def simulate(self, timestep):
         self.manip.ExecutePositionPath(self.path, timestep=timestep)
     def execute(self, realRobot=None):
+        print('Setting speed:', self.speed)
         realRobot.set_joint_position_speed(self.speed)
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
@@ -138,7 +139,7 @@ class MoveToTouch(object):
                 print('[MoveToTouch]: Block estimated position:', position)
                 return (position, orientation)
         print('[MoveToTouch]: Desired block not found. Exiting.')
-        sys.exit()
+        return None
 
     def recalculate_qs(self, realRobot, pose):
         """ Given that the object is at a new pose, recompute the approac
@@ -148,13 +149,24 @@ class MoveToTouch(object):
         grasp_worldF = numpy.dot(obj_worldF, self.grasp.grasp_objF)
         approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.1], 'gripper')
 
-        for _ in range(5):
+        for _ in range(10):
             start_q = realRobot.convertToList(realRobot.joint_angles())
             start_tform = self.manip.ComputeFK(start_q)
             q_approach = self.manip.ComputeIK(approach_tform, seed_q=start_q)
-            if (q_approach is None): continue
+            if (q_approach is None):
+                print('[MoveToTouch] Failed to find approach IK.')
+                continue
+            if not self.manip.IsCollisionFree(q_approach):
+                print('[MoveToTouch] Approach IK in collision.')
+                continue
+
             q_grasp = self.manip.ComputeIK(grasp_worldF, seed_q=q_approach)
-            if (q_grasp is None): continue
+            if (q_grasp is None):
+                print('[MoveToTouch] Failed to find grasp IK.')
+                continue
+            if not self.manip.IsCollisionFree(q_grasp):
+                print('[MoveToTouch] Grasp IK in collision.')
+                continue
 
             adjust_dist = cspaceLength([start_q, q_approach])
             approach_dist = cspaceLength([q_approach, q_grasp])
@@ -162,7 +174,7 @@ class MoveToTouch(object):
             if adjust_dist > 1.5 or approach_dist > 1.5:
                 print(f'[MoveToTouch]: Trajectory too long. Adjust: {adjust_dist}\t Approach: {approach_dist}')
                 continue
-                
+
             print('[MoveToTouch]: Start Transform')
             print(start_tform)
 
@@ -174,13 +186,30 @@ class MoveToTouch(object):
             return q_approach, q_grasp
 
         print('[MoveToTouch]: Could not find adjusted IK solution.')
-        sys.exit(0)
+        return None
 
     def execute(self, realRobot=None):
         if self.use_wrist_camera:
-            pose = self.get_pose_from_wrist()
-            self.start, self.end = self.recalculate_qs(realRobot, pose)
+            success = False
+            for ix in range(3):
+                print(f'[MoveToTouch] Attempt {ix+1} to localize block.')
+                pose = self.get_pose_from_wrist()
+                if pose is None:
+                    continue
+
+                result = self.recalculate_qs(realRobot, pose)
+                if result is None:
+                    continue
+                else:
+                    self.start, self.end = result
+                    success = True
+                    break
+            if not success:
+                print('[MoveToTouch] Failed to find locate and pick up block.')
+                sys.exit(0)
+
             print('[MoveToTouch]: Moving to corrected approach.')
+            realRobot.set_joint_position_speed(0.15)
             realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
         print('[MoveToTouch]: Moving to corrected grasp.')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
