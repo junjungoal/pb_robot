@@ -17,7 +17,7 @@ class BiRRTPlanner(object):
     def __init__(self):
         ## Constants 
         self.TOTAL_TIME = 15.0
-        self.SHORTEN_TIME = 1.0 # For video level, 4 seconds
+        self.SHORTEN_TIME = 4.0 # For video level, 4 seconds
         self.PSAMPLE = 0.2 
         self.QSTEP = 1
         self.tstart = None
@@ -306,7 +306,7 @@ class BiRRTPlanner(object):
         if not self.manip.IsCollisionFree(q, obstacles=self.obstacles):
             return False
         cdist = util.cspaceLength([q_parent, q])
-        count = int(cdist / 0.1) # Check every 0.1 distance (a little arbitrary)
+        count = int(cdist / 0.05) # Check every 0.1 distance (a little arbitrary)
 
         # linearly interpolate between that at some step size and check all those points
         interp = [numpy.linspace(q_parent[i], q[i], count+1).tolist() for i in range(len(q))]
