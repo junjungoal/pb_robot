@@ -94,7 +94,7 @@ class BodyWrench(object):
         return 'w{}'.format(id(self) % 1000)
 
 class JointSpacePath(object):
-    def __init__(self, manip, path, speed=0.3):
+    def __init__(self, manip, path, speed=0.5):
         self.manip = manip
         self.path = path
         self.speed = speed
