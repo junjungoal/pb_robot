@@ -104,6 +104,7 @@ class BiRRTPlanner(object):
         self.grasp = grasp 
         self.obstacles = obstacles
         original_pose = manip.GetJointValues()
+        print('BiRRT Start:', start)
         if self.goal_type == GoalType.TSR_TOOL and self.grasp is None:
             raise ValueError("Planning calls that operate on the tool require the grasp is given")
 
@@ -111,8 +112,12 @@ class BiRRTPlanner(object):
         Ta = nx.Graph(name='start')
         Tb = nx.Graph(name='goal') 
         if not self.manip.IsCollisionFree(start, obstacles=self.obstacles):
+            manip.SetJointValues(original_pose)
+            print('BiRRT FAILED')
             return None
         if not self.manip.IsCollisionFree(goalLocation, obstacles=self.obstacles):
+            print('BiRRT FAILED')
+            manip.SetJointValues(original_pose)
             return None
       
         Ta.add_node('0s', config=start)

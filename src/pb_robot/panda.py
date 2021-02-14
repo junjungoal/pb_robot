@@ -231,7 +231,7 @@ class Manipulator(object):
                     break
                 pts = p.getClosestPoints(self.__robot.id, 
                                          self.__robot.id, 
-                                         distance=0.01, 
+                                         distance=0.015, 
                                          linkIndexA=linkI, 
                                          linkIndexB=linkJ,
                                          physicsClientId=CLIENT)
