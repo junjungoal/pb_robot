@@ -44,7 +44,7 @@ class BodyGrasp(object):
             #self.manip.hand.Close()
             self.manip.hand.MoveTo(0.01)
             self.manip.Grab(self.body, self.grasp_objF)
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
         hand_pose = realRobot.hand.joint_positions()
         if hand_pose['panda_finger_joint1'] < 0.039: # open pose
             realRobot.hand.open()
@@ -99,8 +99,15 @@ class JointSpacePath(object):
         self.path = path
         self.speed = speed
     def simulate(self, timestep):
+        curr_q = self.manip.GetJointValues()
+        start_q = self.path[0]
+        for q1, q2 in zip(curr_q, start_q):
+            if numpy.abs(q1-q2) > 0.01:
+                print('Actual:', curr_q)
+                print('From planner:', start_q)
+                input('ERROR')
         self.manip.ExecutePositionPath(self.path, timestep=timestep)
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
         print('Setting speed:', self.speed)
         realRobot.set_joint_position_speed(self.speed)
         dictPath = [realRobot.convertToDict(q) for q in self.path]
@@ -141,7 +148,7 @@ class MoveToTouch(object):
         print('[MoveToTouch]: Desired block not found. Exiting.')
         return None
 
-    def recalculate_qs(self, realRobot, pose):
+    def recalculate_qs(self, realRobot, pose, obstacles):
         """ Given that the object is at a new pose, recompute the approac
         configurations. Throw an error if the new pose is significantly
         different from the old one. """
@@ -167,13 +174,19 @@ class MoveToTouch(object):
             if not self.manip.IsCollisionFree(q_grasp):
                 print('[MoveToTouch] Grasp IK in collision.')
                 continue
-
-            adjust_dist = cspaceLength([start_q, q_approach])
-            approach_dist = cspaceLength([q_approach, q_grasp])
-            # This should be a short path.
-            if adjust_dist > 1.5 or approach_dist > 1.5:
-                print(f'[MoveToTouch]: Trajectory too long. Adjust: {adjust_dist}\t Approach: {approach_dist}')
+            path1 = self.manip.snap.PlanToConfiguration(self.manip, start_q, q_approach, obstacles=obstacles)
+            path2 = self.manip.snap.PlanToConfiguration(self.manip, q_approach, q_grasp, obstacles=obstacles)
+            if path1 is None:
+                print(f'[MoveToTouch]: Adjust trajectory invalid.')
                 continue
+            if path2 is None:
+                print(f'[MoveToTouch]: Approach trajectory invalid.')
+                continue
+            # approach_dist = cspaceLength([q_approach, q_grasp])
+            # # This should be a short path.
+            # if adjust_dist > 1.5 or approach_dist > 1.5:
+            #     print(f'[MoveToTouch]: Trajectory too long. Adjust: {adjust_dist}\t Approach: {approach_dist}')
+            #     continue
 
             print('[MoveToTouch]: Start Transform')
             print(start_tform)
@@ -188,7 +201,7 @@ class MoveToTouch(object):
         print('[MoveToTouch]: Could not find adjusted IK solution.')
         return None
 
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
         if self.use_wrist_camera:
             success = False
             for ix in range(3):
@@ -197,7 +210,7 @@ class MoveToTouch(object):
                 if pose is None:
                     continue
 
-                result = self.recalculate_qs(realRobot, pose)
+                result = self.recalculate_qs(realRobot, pose, obstacles=obstacles)
                 if result is None:
                     continue
                 else:
@@ -224,7 +237,7 @@ class MoveFromTouch(object):
     def simulate(self, timestep):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
         realRobot.set_joint_position_speed(self.speed)
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
