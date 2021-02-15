@@ -30,7 +30,7 @@ def grasp(box,
     @param box The box to grasp
     @param push_distance The distance to push before grasping
     """
-    gripper_width = 0.08  # TODO: Verify this number.
+    gripper_width = 0.075  # TODO: Verify this number.
 
     dimensions = box.get_dimensions()
     ee_to_palm_distance = 0.1034 # 0.098
@@ -341,9 +341,15 @@ def grasp(box,
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
 
+    final_chain_list = []
+    if add_slanted_grasps:
+        final_chain_list += slanted_chain_list
+    if add_orthogonal_grasps:
+        final_chain_list += chain_list
+        
     # Each chain in the list can also be rotated by 180 degrees around z
-    rotated_chain_list = []
-    for c in chain_list + slanted_chain_list:
+    rotated_chains = []
+    for c in final_chain_list:
         rval = numpy.pi
         R = numpy.array([[numpy.cos(rval), -numpy.sin(rval), 0., 0.],
                          [numpy.sin(rval),  numpy.cos(rval), 0., 0.],
@@ -355,17 +361,9 @@ def grasp(box,
         tsr_new = TSR(T0_w = tsr.T0_w, Tw_e=Tw_e_new, Bw=tsr.Bw)
         tsr_chain_new = TSRChain(sample_start=False, sample_goal=True, constrain=False,
                                      TSR=tsr_new)
-        rotated_chain_list += [ tsr_chain_new ]
+        rotated_chains += [ tsr_chain_new ]
 
-    chain_list += rotated_chain_list
-
-    final_chain_list = []
-    if add_slanted_grasps:
-        final_chain_list += slanted_chain_list
-    if add_orthogonal_grasps:
-        final_chain_list += chain_list
-
-    return final_chain_list
+    return final_chain_list + rotated_chains
 
 
 def bar_grasp(box, push_distance=0.0,
