@@ -91,7 +91,7 @@ def grasp(box,
             chain_list += [grasp_chain_front1, grasp_chain_front2]
         # Angled grasp: Tw_e_side1.
         if add_slanted_grasps:
-            
+
             for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
@@ -108,7 +108,7 @@ def grasp(box,
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
                 #d = ee_to_palm_distance/numpy.sqrt(2)
-                
+
                 Tw_e = Tw_e_front2.copy()
                 Tw_e[:, 3] = numpy.array([-block_length - dx, 0., -numpy.sign(rot)*dy, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front2[0:3,0:3]@rot_y45
@@ -343,7 +343,7 @@ def grasp(box,
 
     # Each chain in the list can also be rotated by 180 degrees around z
     rotated_chain_list = []
-    for c in chain_list:
+    for c in chain_list + slanted_chain_list:
         rval = numpy.pi
         R = numpy.array([[numpy.cos(rval), -numpy.sin(rval), 0., 0.],
                          [numpy.sin(rval),  numpy.cos(rval), 0., 0.],
