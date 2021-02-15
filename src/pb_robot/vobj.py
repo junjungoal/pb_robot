@@ -27,7 +27,7 @@ class RelativePose(object):
         return 'rp{}'.format(id(self) % 1000)
 
 class BodyGrasp(object):
-    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=40):
+    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=60):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.manip = manip
