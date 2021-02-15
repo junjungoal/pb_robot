@@ -44,7 +44,7 @@ class BodyGrasp(object):
             #self.manip.hand.Close()
             self.manip.hand.MoveTo(0.01)
             self.manip.Grab(self.body, self.grasp_objF)
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
         hand_pose = realRobot.hand.joint_positions()
         if hand_pose['panda_finger_joint1'] < 0.039: # open pose
             realRobot.hand.open()
@@ -94,13 +94,21 @@ class BodyWrench(object):
         return 'w{}'.format(id(self) % 1000)
 
 class JointSpacePath(object):
-    def __init__(self, manip, path, speed=0.3):
+    def __init__(self, manip, path, speed=0.5):
         self.manip = manip
         self.path = path
         self.speed = speed
     def simulate(self, timestep):
+        curr_q = self.manip.GetJointValues()
+        start_q = self.path[0]
+        for q1, q2 in zip(curr_q, start_q):
+            if numpy.abs(q1-q2) > 0.01:
+                print('Actual:', curr_q)
+                print('From planner:', start_q)
+                input('ERROR')
         self.manip.ExecutePositionPath(self.path, timestep=timestep)
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
+        print('Setting speed:', self.speed)
         realRobot.set_joint_position_speed(self.speed)
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
@@ -128,53 +136,95 @@ class MoveToTouch(object):
         try:
             poses = _get_block_poses_wrist().poses
         except:
-            print('Service call to get block poses failed during approach. Exiting.')
+            print('[MoveToTouch]: Service call to get block poses failed during approach. Exiting.')
             sys.exit()
         for named_pose in poses:
             if named_pose.block_id in self.block_name:
                 pose = named_pose.pose.pose
                 position = (pose.position.x, pose.position.y, pose.position.z) # self.block.get_dimensions()[2]/2.
                 orientation = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
-                print('Block estimated position:', position)
+                print('[MoveToTouch]: Block estimated position:', position)
                 return (position, orientation)
-        print('Desired block not found. Exiting.')
-        sys.exit()
+        print('[MoveToTouch]: Desired block not found. Exiting.')
+        return None
 
-    def recalculate_qs(self, realRobot, pose):
+    def recalculate_qs(self, realRobot, pose, obstacles):
         """ Given that the object is at a new pose, recompute the approac
         configurations. Throw an error if the new pose is significantly
         different from the old one. """
         obj_worldF = pb_robot.geometry.tform_from_pose(pose)
         grasp_worldF = numpy.dot(obj_worldF, self.grasp.grasp_objF)
-        approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.08], 'gripper')
+        approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.1], 'gripper')
 
-        for _ in range(3):
+        for _ in range(10):
             start_q = realRobot.convertToList(realRobot.joint_angles())
             start_tform = self.manip.ComputeFK(start_q)
             q_approach = self.manip.ComputeIK(approach_tform, seed_q=start_q)
-            if (q_approach is None): continue
+            if (q_approach is None):
+                print('[MoveToTouch] Failed to find approach IK.')
+                continue
+            if not self.manip.IsCollisionFree(q_approach, debug=True):
+                print('[MoveToTouch] Approach IK in collision.')
+                continue
+
             q_grasp = self.manip.ComputeIK(grasp_worldF, seed_q=q_approach)
-            if (q_grasp is None): continue
-            print('Start Transform')
+            if (q_grasp is None):
+                print('[MoveToTouch] Failed to find grasp IK.')
+                continue
+            if not self.manip.IsCollisionFree(q_grasp, debug=True):
+                print('[MoveToTouch] Grasp IK in collision.')
+                continue
+            path1 = self.manip.snap.PlanToConfiguration(self.manip, start_q, q_approach, obstacles=obstacles)
+            path2 = self.manip.snap.PlanToConfiguration(self.manip, q_approach, q_grasp, obstacles=obstacles)
+            if path1 is None:
+                print(f'[MoveToTouch]: Adjust trajectory invalid.')
+                continue
+            if path2 is None:
+                print(f'[MoveToTouch]: Approach trajectory invalid.')
+                continue
+            # approach_dist = cspaceLength([q_approach, q_grasp])
+            # # This should be a short path.
+            # if adjust_dist > 1.5 or approach_dist > 1.5:
+            #     print(f'[MoveToTouch]: Trajectory too long. Adjust: {adjust_dist}\t Approach: {approach_dist}')
+            #     continue
+
+            print('[MoveToTouch]: Start Transform')
             print(start_tform)
 
-            print('Approach Transform')
+            print('[MoveToTouch]: Approach Transform')
             print(approach_tform)
 
-            print('Grasp Transform')
+            print('[MoveToTouch]: Grasp Transform')
             print(grasp_worldF)
             return q_approach, q_grasp
 
-    def execute(self, realRobot=None):
+        print('[MoveToTouch]: Could not find adjusted IK solution.')
+        return None
+
+    def execute(self, realRobot=None, obstacles=[]):
         if self.use_wrist_camera:
-            pose = self.get_pose_from_wrist()
-            self.start, self.end = self.recalculate_qs(realRobot, pose)
-            print('Moving to corrected approach.')
+            success = False
+            for ix in range(3):
+                print(f'[MoveToTouch] Attempt {ix+1} to localize block.')
+                pose = self.get_pose_from_wrist()
+                if pose is None:
+                    continue
+
+                result = self.recalculate_qs(realRobot, pose, obstacles=obstacles)
+                if result is None:
+                    continue
+                else:
+                    self.start, self.end = result
+                    success = True
+                    break
+            if not success:
+                print('[MoveToTouch] Failed to find locate and pick up block.')
+                sys.exit(0)
+
+            print('[MoveToTouch]: Moving to corrected approach.')
+            realRobot.set_joint_position_speed(0.15)
             realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
-        print('Moving to corrected grasp.')
-        length = cspaceLength([self.start, self.end])
-        print('CSpaceLength:', length)
-        input('Move?')
+        print('[MoveToTouch]: Moving to corrected grasp.')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
@@ -187,7 +237,7 @@ class MoveFromTouch(object):
     def simulate(self, timestep):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
-    def execute(self, realRobot=None):
+    def execute(self, realRobot=None, obstacles=[]):
         realRobot.set_joint_position_speed(self.speed)
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
     def __repr__(self):
@@ -212,7 +262,7 @@ class CartImpedPath(object):
         self.start_q = start_q
         self.stiffness = stiffness
         self.timestep = timestep
-    def simulate(self):
+    def simulate(self, timestep):
         q = self.manip.GetJointValues()
         if numpy.linalg.norm(numpy.subtract(q, self.start_q)) > 1e-3:
             raise IOError("Incorrect starting position")
@@ -226,7 +276,7 @@ class CartImpedPath(object):
         sim_start = self.ee_path[0, 0:3, 3]
         real_start = realRobot.endpoint_pose()['position']
         sim_real_diff = numpy.subtract(sim_start, real_start)
-
+        input('Cartesian path?')
         poses = []
         for transform in self.ee_path:
             #quat = FrankaQuat(pb_robot.geometry.quat_from_matrix(transform[0:3, 0:3]))

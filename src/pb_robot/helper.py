@@ -117,6 +117,8 @@ def implies(p1, p2):
 def all_between(lower_limits, values, upper_limits):
     assert len(lower_limits) == len(values)
     assert len(values) == len(upper_limits)
+    lower_limits = [l + 0.05 for l in lower_limits]
+    upper_limits = [u - 0.05 for u in upper_limits]
     return np.less_equal(lower_limits, values).all() and \
            np.less_equal(values, upper_limits).all()
 

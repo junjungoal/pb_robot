@@ -11,7 +11,7 @@ class SnapPlanner(object):
     def __init__(self):
         self.checkRate = 0.05
 
-    def PlanToConfiguration(self, manip, start_q, goal_q, obstacles=None):
+    def PlanToConfiguration(self, manip, start_q, goal_q, obstacles=None, check_upwards=False):
         '''Plan from one joint location (start) to another (goal_config)
         optional constraints.
         @param manip Robot arm to plan with
@@ -36,6 +36,14 @@ class SnapPlanner(object):
         middle_qs = numpy.transpose(interp)[1:-1] # Remove given points
         if not  all((manip.IsCollisionFree(m, obstacles=obstacles) for m in middle_qs)):
             return None
+
+        if check_upwards:
+            start_z = manip.ComputeFK(start_q)[2, 3]
+            for mq in middle_qs:
+                mid_z = manip.ComputeFK(mq)[2, 3]
+                if mid_z < start_z:
+                    print('[Snap Planner] Trajectory goes down first.')
+                    return None
 
         # Have collision-free path. For now just return two points
         return [start_q, goal_q]

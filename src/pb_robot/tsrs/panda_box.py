@@ -23,8 +23,8 @@ def ComputePrePose(og_pose, directionVector, approach_frame, relation=None):
 def grasp(box,
           push_distance=0.0,
           width_offset=0.0,
-          add_orthogonal_grasps=True,
           add_slanted_grasps=True,
+          add_orthogonal_grasps=True,
           **kw_args):
     """
     @param box The box to grasp
@@ -33,8 +33,12 @@ def grasp(box,
     gripper_width = 0.08  # TODO: Verify this number.
 
     dimensions = box.get_dimensions()
-    ee_to_palm_distance = 0.098
+    ee_to_palm_distance = 0.1034 # 0.098
     lateral_offset = ee_to_palm_distance + dimensions[0]/2
+
+    angle = numpy.deg2rad(30)
+    dy = numpy.sin(angle)*ee_to_palm_distance
+    dx = numpy.cos(angle)*ee_to_palm_distance
 
     p0_w = box.get_base_link_pose()
     T0_w = pb_robot.geometry.tform_from_pose(p0_w)
@@ -81,55 +85,59 @@ def grasp(box,
                                   constrain=False, TSR=front_tsr4)
 
     # Check that the blocks are small enough to support grasps along that dimension.
-    block_length = dimensions[0]/2
+    block_length = dimensions[0]/2 - 0.01
     if dimensions[1] < gripper_width:
-        #chain_list += [grasp_chain_front1, grasp_chain_front2]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_front1, grasp_chain_front2]
         # Angled grasp: Tw_e_side1.
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_front1.copy()
-                Tw_e[:, 3] = numpy.array([block_length+d, 0., -numpy.sign(rot)*d, 1.])
+                Tw_e[:, 3] = numpy.array([block_length+dx, 0., -numpy.sign(rot)*dy, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front1[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             # Angled grasp: Tw_e_side2.
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
+                
                 Tw_e = Tw_e_front2.copy()
-                Tw_e[:, 3] = numpy.array([-block_length - d, 0., -numpy.sign(rot)*d, 1.])
+                Tw_e[:, 3] = numpy.array([-block_length - dx, 0., -numpy.sign(rot)*dy, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front2[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[2] < gripper_width:
-        #chain_list += [grasp_chain_front3, grasp_chain_front4]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_front3, grasp_chain_front4]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_front3.copy()
-                Tw_e[:, 3] = numpy.array([block_length+d, -numpy.sign(rot)*d, 0., 1.])
+                Tw_e[:, 3] = numpy.array([block_length+dx, -numpy.sign(rot)*dy, 0., 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front3[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
             # Angled grasp: Tw_e_side2.
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_front4.copy()
-                Tw_e[:, 3] = numpy.array([-block_length-d, numpy.sign(rot)*d, 0., 1.])
+                Tw_e[:, 3] = numpy.array([-block_length-dx, numpy.sign(rot)*dy, 0., 1.])
                 Tw_e[0:3, 0:3] = Tw_e_front4[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
@@ -176,52 +184,54 @@ def grasp(box,
     side_tsr4 = TSR(T0_w = T0_w, Tw_e = Tw_e_side4, Bw = Bw_side)
     grasp_chain_side4 = TSRChain(sample_start=False, sample_goal=True,
                                  constrain=False, TSR=side_tsr4)
-    block_length = dimensions[2]/2
+    block_length = dimensions[2]/2  - 0.01
     if dimensions[1] < gripper_width:
-        #chain_list += [grasp_chain_side1, grasp_chain_side2]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_side1, grasp_chain_side2]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_side1.copy()
-                Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*d, 0, block_length+d, 1.])
+                Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*dy, 0, block_length+dx, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side1[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_side2.copy()
-                Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*d, 0, -block_length-d, 1.])
+                Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*dy, 0, -block_length-dx, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side2[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[0] < gripper_width:
-        #chain_list += [grasp_chain_side3, grasp_chain_side4]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_side3, grasp_chain_side4]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_side3.copy()
-                Tw_e[:, 3] = numpy.array([0, -numpy.sign(rot)*d, block_length+d, 1.])
+                Tw_e[:, 3] = numpy.array([0, -numpy.sign(rot)*dy, block_length+dx, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side3[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_side4.copy()
-                Tw_e[:, 3] = numpy.array([0, numpy.sign(rot)*d, -block_length-d, 1.])
+                Tw_e[:, 3] = numpy.array([0, numpy.sign(rot)*dy, -block_length-dx, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_side4[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
@@ -277,52 +287,54 @@ def grasp(box,
     bottom_tsr4 = TSR(T0_w = T0_w, Tw_e = Tw_e_bottom4, Bw = Bw_topbottom)
     grasp_chain_bottom4 = TSRChain(sample_start=False, sample_goal=True,
                                   constrain=False, TSR=bottom_tsr4)
-    block_length = dimensions[1]/2
+    block_length = dimensions[1]/2  - 0.01
     if dimensions[0] < gripper_width:
-        #chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_bottom1, grasp_chain_bottom2]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_bottom1.copy()
-                Tw_e[:, 3] = numpy.array([0, block_length+d, -numpy.sign(rot)*d, 1.])
+                Tw_e[:, 3] = numpy.array([0, block_length+dx, -numpy.sign(rot)*dy, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom1[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_bottom2.copy()
-                Tw_e[:, 3] = numpy.array([0, -block_length-d, -numpy.sign(rot)*d, 1.])
+                Tw_e[:, 3] = numpy.array([0, -block_length-dx, -numpy.sign(rot)*dy, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom2[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
     if dimensions[2] < gripper_width:
-        #chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
+        if add_orthogonal_grasps:
+            chain_list += [grasp_chain_bottom3, grasp_chain_bottom4]
         if add_slanted_grasps:
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_bottom3.copy()
-                Tw_e[:, 3] = numpy.array([numpy.sign(rot)*d, block_length+d, 0, 1.])
+                Tw_e[:, 3] = numpy.array([numpy.sign(rot)*dy, block_length+dx, 0, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom3[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
                 slanted_chain_list.append(TSRChain(sample_start=False, sample_goal=True,
                                         constrain=False, TSR=tsr))
-            for rot in [-numpy.pi/4, numpy.pi/4]:
+            for rot in [-angle, angle]:
                 rot_y45 = pb_robot.geometry.Euler(pitch=rot)
                 rot_y45 = pb_robot.geometry.matrix_from_quat(pb_robot.geometry.quat_from_euler(rot_y45))
-                d = ee_to_palm_distance/numpy.sqrt(2)
+                #d = ee_to_palm_distance/numpy.sqrt(2)
                 Tw_e = Tw_e_bottom4.copy()
-                Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*d, -block_length-d, 0, 1.])
+                Tw_e[:, 3] = numpy.array([-numpy.sign(rot)*dy, -block_length-dx, 0, 1.])
                 Tw_e[0:3, 0:3] = Tw_e_bottom4[0:3,0:3]@rot_y45
 
                 tsr = TSR(T0_w = T0_w, Tw_e = Tw_e, Bw = Bw_yz)
@@ -475,4 +487,4 @@ def bar_grasp(box, push_distance=0.0,
                                      TSR=tsr_new)
         rotated_chain_list += [ tsr_chain_new ]
 
-    return chain_list #+ rotated_chain_list
+    return chain_list + rotated_chain_list
