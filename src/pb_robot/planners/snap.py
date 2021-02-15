@@ -27,7 +27,7 @@ class SnapPlanner(object):
         cdist = util.cspaceLength([start_q, goal_q])
         count = int(cdist / self.checkRate) # Check every 0.1 distance (a little arbitrary)
         # This should be a short path.
-        if cdist > 1.5:
+        if cdist > 2.0:
             print('[Snap Planner] Too long:', cdist)
             return None
 
