@@ -316,7 +316,7 @@ class BiRRTPlanner(object):
         # linearly interpolate between that at some step size and check all those points
         interp = [numpy.linspace(q_parent[i], q[i], count+1).tolist() for i in range(len(q))]
         middle_qs = numpy.transpose(interp)[1:-1] # Remove given points
-        return all((self.manip.IsCollisionFree(m, obstacles=self.obstacles) for m in middle_qs)) 
+        return all((self.manip.IsCollisionFree(m, obstacles=self.obstacles, inflate_blocks=True) for m in middle_qs)) 
 
     def extractPath(self, Ta, qa_reach, Tb, qb_reach):
         '''We have paths from 0 to each reach where the reaches are equal,

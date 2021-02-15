@@ -191,7 +191,7 @@ class Manipulator(object):
                 return self.ComputeIK(transform)
         return q 
 
-    def IsCollisionFree(self, q, obstacles=None, self_collisions=True):
+    def IsCollisionFree(self, q, obstacles=None, self_collisions=True, inflate_blocks=False):
         '''Check if a configuration is collision-free. Given any grasped objects
         we do not collision-check against those. 
         @param q Configuration to check at
@@ -211,7 +211,7 @@ class Manipulator(object):
                                                                                            unfrozen=self.moving_links)
 
         # Evaluate if in collision
-        val = not collisionfn(q)
+        val = not collisionfn(q, inflate_blocks)
 
         # Robot will error if links get too close (i.e. predicts collision)
         # so we want to insure that the is padding wrt collision-free-ness 

@@ -32,12 +32,17 @@ def get_collision_fn(body, joints, obstacles, attachments, self_collisions, cust
     moving_bodies = [(body._Manipulator__robot, moving_links)] + attachments
     check_body_pairs = list(product(moving_bodies, obstacles))  
     lower_limits, upper_limits = body._Manipulator__robot.get_custom_limits(joints, custom_limits)
-    def collision_fn(q):
+    def collision_fn(q, inflate_blocks=False):
         if not pb_robot.helper.all_between(lower_limits, q, upper_limits):
             return True
         #body.set_joint_positions(joints, q) 
         body.SetJointValues(q)
         for body1, body2 in check_body_pairs:
+            if inflate_blocks and 'obj' in body2.get_name():
+                max_dist = 0.05
+            else:   
+                max_dist = 0.
+            kwargs['max_distance'] = max_dist
             if pairwise_collision(body1, body2, **kwargs): 
                 return True
         for link1, link2 in check_link_pairs:
