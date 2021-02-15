@@ -261,7 +261,6 @@ class MoveFromTouch(object):
             if path2 is None:
                 print(f'[MoveFromTouch]: Readjust trajectory invalid.')
                 continue
-            input('Move to readjusted backoff?')
             realRobot.move_from_touch(realRobot.convertToDict(backoff_q))
             return
 
@@ -269,7 +268,6 @@ class MoveFromTouch(object):
         realRobot.set_joint_position_speed(self.speed)
         if self.use_wrist_camera:
             self.recompute_backoff(realRobot, obstacles)
-        input('Move to end?')
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
 
     def __repr__(self):
