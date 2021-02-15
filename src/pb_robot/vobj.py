@@ -230,16 +230,48 @@ class MoveToTouch(object):
         return 'moveToTouch{}'.format(id(self) % 1000)
 
 class MoveFromTouch(object):
-    def __init__(self, manip, end, speed=0.3):
+    def __init__(self, manip, end, speed=0.3, use_wrist_camera=False):
         self.manip = manip
         self.end = end
         self.speed = speed
+        self.use_wrist_camera = use_wrist_camera
     def simulate(self, timestep):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
+    def recompute_backoff(self, realRobot, obstacles):
+        curr_q = realRobot.convertToList(realRobot.joint_angles())
+        grasp_tform = self.manip.ComputeFK(curr_q)
+        backoff_tform = ComputePrePose(grasp_tform, [0, 0, 0.1], 'global')
+
+        print('[MoveFromTouch] Computing new backoff position')
+        for ax in range(10):
+            print(f'[MoveFromTouch] Attempt {ax} for backoff.')
+            backoff_q = self.manip.ComputeIK(backoff_tform, seed_q=curr_q)
+            if (backoff_q is None):
+                print('[MoveFromTouch] Failed to find backoff IK.')
+                continue
+            if not self.manip.IsCollisionFree(backoff_q, debug=True):
+                print('[MoveFromTouch] Backoff IK in collision.')
+                continue
+            path1 = self.manip.snap.PlanToConfiguration(self.manip, curr_q, backoff_q, obstacles=obstacles, check_upwards=True)
+            path2 = self.manip.snap.PlanToConfiguration(self.manip, backoff_q, self.end, obstacles=obstacles)
+            if path1 is None:
+                print(f'[MoveFromTouch]: Backoff trajectory invalid.')
+                continue
+            if path2 is None:
+                print(f'[MoveFromTouch]: Readjust trajectory invalid.')
+                continue
+            input('Move to readjusted backoff?')
+            realRobot.move_from_touch(realRobot.convertToDict(backoff_q))
+            return
+
     def execute(self, realRobot=None, obstacles=[]):
         realRobot.set_joint_position_speed(self.speed)
+        if self.use_wrist_camera:
+            self.recompute_backoff(realRobot, obstacles)
+        input('Move to end?')
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
+
     def __repr__(self):
         return 'moveFromTouch{}'.format(id(self) % 1000)
 

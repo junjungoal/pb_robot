@@ -28,7 +28,7 @@ class SnapPlanner(object):
         count = int(cdist / self.checkRate) # Check every 0.1 distance (a little arbitrary)
         # This should be a short path.
         if cdist > 1.5:
-            print('Too long:', cdist)
+            print('[Snap Planner] Too long:', cdist)
             return None
 
         # linearly interpolate between that at some step size and check all those points
