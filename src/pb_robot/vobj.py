@@ -163,7 +163,7 @@ class MoveToTouch(object):
             if (q_approach is None):
                 print('[MoveToTouch] Failed to find approach IK.')
                 continue
-            if not self.manip.IsCollisionFree(q_approach):
+            if not self.manip.IsCollisionFree(q_approach, debug=True):
                 print('[MoveToTouch] Approach IK in collision.')
                 continue
 
@@ -171,7 +171,7 @@ class MoveToTouch(object):
             if (q_grasp is None):
                 print('[MoveToTouch] Failed to find grasp IK.')
                 continue
-            if not self.manip.IsCollisionFree(q_grasp):
+            if not self.manip.IsCollisionFree(q_grasp, debug=True):
                 print('[MoveToTouch] Grasp IK in collision.')
                 continue
             path1 = self.manip.snap.PlanToConfiguration(self.manip, start_q, q_approach, obstacles=obstacles)

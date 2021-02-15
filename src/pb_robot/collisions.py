@@ -30,12 +30,14 @@ def get_collision_fn(body, joints, obstacles, attachments, self_collisions, cust
     moving_links = frozenset(unfrozen)
 
     moving_bodies = [(body._Manipulator__robot, moving_links)] + attachments
-    check_body_pairs = list(product(moving_bodies, obstacles))  
+    check_body_pairs = list(product(moving_bodies, obstacles))
     lower_limits, upper_limits = body._Manipulator__robot.get_custom_limits(joints, custom_limits)
-    def collision_fn(q, inflate_blocks=False):
+    def collision_fn(q, inflate_blocks=False, debug=False):
         if not pb_robot.helper.all_between(lower_limits, q, upper_limits):
+            if debug:
+                print('[CollisionFn] Joint limits exceeded.')
             return True
-        #body.set_joint_positions(joints, q) 
+        #body.set_joint_positions(joints, q)
         body.SetJointValues(q)
         for body1, body2 in check_body_pairs:
             if inflate_blocks and 'obj' in body2.get_name():
@@ -44,9 +46,13 @@ def get_collision_fn(body, joints, obstacles, attachments, self_collisions, cust
                 max_dist = 0.
             kwargs['max_distance'] = max_dist
             if pairwise_collision(body1, body2, **kwargs): 
+                if debug:
+                    print(f'[CollisionFn] Body collision: {body2.get_name()}')
                 return True
         for link1, link2 in check_link_pairs:
             if pairwise_link_collision(body._Manipulator__robot, link1, body._Manipulator__robot, link2):
+                if debug:
+                    print('[CollisionFn] Link collision.')
                 return True
         return False
     return collision_fn, check_link_pairs, unfrozen
@@ -56,7 +62,7 @@ def get_self_link_pairs(body, joints, disabled_collisions=set(), only_moving=Tru
     moving_links = get_moving_links(body, joints)
     #fixed_links = list(set(body.links) - set(moving_links))
     moving_links_ids = [l.linkID for l in moving_links]
-    fixed_links = [link for link in body.all_links if link.linkID not in moving_links_ids] 
+    fixed_links = [link for link in body.all_links if link.linkID not in moving_links_ids]
     check_link_pairs = list(product(moving_links, fixed_links))
 
     if only_moving:
