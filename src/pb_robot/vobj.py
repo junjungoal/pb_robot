@@ -36,7 +36,7 @@ class BodyGrasp(object):
         self.r = r
         self.mu = mu
         self.N = N
-    def simulate(self, timestep):
+    def simulate(self, timestep, obstacles=[]):
         if self.body.get_name() in self.manip.grabbedObjects:
             # Object grabbed, need to release
             self.manip.hand.Open()
@@ -100,7 +100,7 @@ class JointSpacePath(object):
         self.manip = manip
         self.path = path
         self.speed = speed
-    def simulate(self, timestep):
+    def simulate(self, timestep, simulate=[]):
         curr_q = self.manip.GetJointValues()
         start_q = self.path[0]
         for q1, q2 in zip(curr_q, start_q):
@@ -259,7 +259,7 @@ class MoveFromTouch(object):
         self.end = end
         self.speed = speed
         self.use_wrist_camera = use_wrist_camera
-    def simulate(self, timestep):
+    def simulate(self, timestep, obstacles=[]):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
     def recompute_backoff(self, realRobot, obstacles):
