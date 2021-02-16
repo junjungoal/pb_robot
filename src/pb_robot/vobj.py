@@ -29,7 +29,7 @@ class RelativePose(object):
         return 'rp{}'.format(id(self) % 1000)
 
 class BodyGrasp(object):
-    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=60):
+    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=40):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.manip = manip
@@ -161,7 +161,7 @@ class MoveToTouch(object):
             if (q_approach is None):
                 print('[MoveToTouch] Failed to find approach IK.')
                 continue
-            if not self.manip.IsCollisionFree(q_approach, debug=True):
+            if not self.manip.IsCollisionFree(q_approach, debug=True, obstacles=obstacles):
                 print('[MoveToTouch] Approach IK in collision.')
                 continue
 
@@ -169,7 +169,7 @@ class MoveToTouch(object):
             if (q_grasp is None):
                 print('[MoveToTouch] Failed to find grasp IK.')
                 continue
-            if not self.manip.IsCollisionFree(q_grasp, debug=True):
+            if not self.manip.IsCollisionFree(q_grasp, debug=True, obstacles=obstacles):
                 print('[MoveToTouch] Grasp IK in collision.')
                 continue
             path1 = self.manip.snap.PlanToConfiguration(self.manip, start_q, q_approach, obstacles=obstacles)
