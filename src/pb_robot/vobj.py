@@ -100,7 +100,7 @@ class JointSpacePath(object):
         self.manip = manip
         self.path = path
         self.speed = speed
-    def simulate(self, timestep, simulate=[]):
+    def simulate(self, timestep, obstacles=[]):
         curr_q = self.manip.GetJointValues()
         start_q = self.path[0]
         for q1, q2 in zip(curr_q, start_q):
