@@ -199,7 +199,7 @@ class MoveToTouch(object):
         print('[MoveToTouch]: Could not find adjusted IK solution.')
         return None
 
-    def simulate(self, timestep):
+    def simulate(self, timestep, obstacles=[]):
         # When use_wrist_camera is enabled in simulation there is no vision
         # system, so we sample a perturbation of the current block pose
         if self.use_wrist_camera:
@@ -209,9 +209,10 @@ class MoveToTouch(object):
             new_pos = pos + np.random.randn(3) * 0.0
             new_orn = Rot.from_quat(orn) * Rot.from_euler('z', np.random.randn() * 0.0)
             new_pose = (new_pos, new_orn.as_quat())
+            print('NEW POSE', new_pose)
             # get the current position of the bot and calculate the new pregrasp pose
             start_q = self.manip.GetJointValues()
-            result = self.recalculate_qs(start_q, new_pose, obstacles=[])
+            result = self.recalculate_qs(start_q, new_pose, obstacles=obstacles)
             if result is None:
                 print('[MoveToTouch] Failed to find locate and pick up block.')
                 sys.exit(0)
