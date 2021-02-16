@@ -96,7 +96,7 @@ class BodyWrench(object):
         return 'w{}'.format(id(self) % 1000)
 
 class JointSpacePath(object):
-    def __init__(self, manip, path, speed=0.5):
+    def __init__(self, manip, path, speed=0.6):
         self.manip = manip
         self.path = path
         self.speed = speed
@@ -216,7 +216,7 @@ class MoveToTouch(object):
             if result is None:
                 print('[MoveToTouch] Failed to find locate and pick up block.')
                 sys.exit(0)
-            else: 
+            else:
                 self.start, self.end = result
                 print('Moving to corrected approach.')
 
@@ -246,7 +246,7 @@ class MoveToTouch(object):
                 sys.exit(0)
 
             print('[MoveToTouch]: Moving to corrected approach.')
-            realRobot.set_joint_position_speed(0.15)
+            realRobot.set_joint_position_speed(0.2)
             realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
         print('[MoveToTouch]: Moving to corrected grasp.')
         realRobot.move_to_touch(realRobot.convertToDict(self.end))
