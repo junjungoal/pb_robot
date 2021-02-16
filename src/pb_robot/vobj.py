@@ -1,10 +1,12 @@
 import pb_robot
-import numpy
+import numpy as np
 import time
 from pb_robot.transformations import quaternion_from_matrix
 import sys
 from pb_robot.tsrs.panda_box import ComputePrePose
 from pb_robot.planners.util import cspaceLength
+
+from scipy.spatial.transform import Rotation as Rot
 
 class BodyPose(object):
     def __init__(self, body, pose):
@@ -15,14 +17,14 @@ class BodyPose(object):
 
 class RelativePose(object):
     # For cap and bottle, cap is body1, bottle is body2
-    #body1_body2F = numpy.dot(numpy.linalg.inv(body1.get_transform()), body2.get_transform())
+    #body1_body2F = np.dot(np.linalg.inv(body1.get_transform()), body2.get_transform())
     #relative_pose = pb_robot.vobj.RelativePose(body1, body2, body1_body2F)
     def __init__(self, body1, body2, pose):
         self.body1 = body1
         self.body2 = body2
         self.pose = pose #body1_body2F
     def computeB1GivenB2(self, body2_pose):
-        return numpy.linalg.inv(numpy.dot(self.pose, numpy.linalg.inv(body2_pose)))
+        return np.linalg.inv(np.dot(self.pose, np.linalg.inv(body2_pose)))
     def __repr__(self):
         return 'rp{}'.format(id(self) % 1000)
 
@@ -102,7 +104,7 @@ class JointSpacePath(object):
         curr_q = self.manip.GetJointValues()
         start_q = self.path[0]
         for q1, q2 in zip(curr_q, start_q):
-            if numpy.abs(q1-q2) > 0.01:
+            if np.abs(q1-q2) > 0.01:
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
@@ -125,9 +127,6 @@ class MoveToTouch(object):
         self.block = block
         self.grasp = grasp
 
-    def simulate(self, timestep):
-        self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep)
-
     def get_pose_from_wrist(self):
         import rospy
         from panda_vision.srv import GetBlockPosesWrist
@@ -148,16 +147,15 @@ class MoveToTouch(object):
         print('[MoveToTouch]: Desired block not found. Exiting.')
         return None
 
-    def recalculate_qs(self, realRobot, pose, obstacles):
+    def recalculate_qs(self, start_q, pose, obstacles):
         """ Given that the object is at a new pose, recompute the approac
         configurations. Throw an error if the new pose is significantly
         different from the old one. """
         obj_worldF = pb_robot.geometry.tform_from_pose(pose)
-        grasp_worldF = numpy.dot(obj_worldF, self.grasp.grasp_objF)
+        grasp_worldF = np.dot(obj_worldF, self.grasp.grasp_objF)
         approach_tform = ComputePrePose(grasp_worldF, [0, 0, -0.1], 'gripper')
 
         for _ in range(10):
-            start_q = realRobot.convertToList(realRobot.joint_angles())
             start_tform = self.manip.ComputeFK(start_q)
             q_approach = self.manip.ComputeIK(approach_tform, seed_q=start_q)
             if (q_approach is None):
@@ -201,6 +199,30 @@ class MoveToTouch(object):
         print('[MoveToTouch]: Could not find adjusted IK solution.')
         return None
 
+    def simulate(self, timestep):
+        # When use_wrist_camera is enabled in simulation there is no vision
+        # system, so we sample a perturbation of the current block pose
+        if self.use_wrist_camera:
+            # sample a new pose for the object with 1cm of position noise
+            # and 10 degrees of rotation noise about the vertical axis
+            pos, orn = self.block.get_pose()
+            new_pos = pos + np.random.randn(3) * 0.0
+            new_orn = Rot.from_quat(orn) * Rot.from_euler('z', np.random.randn() * 0.0)
+            new_pose = (new_pos, new_orn.as_quat())
+            # get the current position of the bot and calculate the new pregrasp pose
+            start_q = self.manip.GetJointValues()
+            result = self.recalculate_qs(start_q, new_pose, obstacles=[])
+            if result is None:
+                print('[MoveToTouch] Failed to find locate and pick up block.')
+                sys.exit(0)
+            else: 
+                self.start, self.end = result
+                print('Moving to corrected approach.')
+
+        length = cspaceLength([self.start, self.end])
+        print('CSpaceLength:', length)
+        self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep)
+
     def execute(self, realRobot=None, obstacles=[]):
         if self.use_wrist_camera:
             success = False
@@ -210,7 +232,8 @@ class MoveToTouch(object):
                 if pose is None:
                     continue
 
-                result = self.recalculate_qs(realRobot, pose, obstacles=obstacles)
+                start_q = realRobot.convertToList(realRobot.joint_angles())
+                result = self.recalculate_qs(start_q, pose, obstacles=obstacles)
                 if result is None:
                     continue
                 else:
@@ -296,7 +319,7 @@ class CartImpedPath(object):
         self.timestep = timestep
     def simulate(self, timestep):
         q = self.manip.GetJointValues()
-        if numpy.linalg.norm(numpy.subtract(q, self.start_q)) > 1e-3:
+        if np.linalg.norm(np.subtract(q, self.start_q)) > 1e-3:
             raise IOError("Incorrect starting position")
         # Going to fake cartesian impedance control
         for i in range(len(self.ee_path)):
@@ -307,7 +330,7 @@ class CartImpedPath(object):
         #FIXME adjustment based on current position..? Need to play with how execution goes.
         sim_start = self.ee_path[0, 0:3, 3]
         real_start = realRobot.endpoint_pose()['position']
-        sim_real_diff = numpy.subtract(sim_start, real_start)
+        sim_real_diff = np.subtract(sim_start, real_start)
         input('Cartesian path?')
         poses = []
         for transform in self.ee_path:
