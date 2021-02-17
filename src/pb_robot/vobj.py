@@ -138,7 +138,7 @@ class MoveToTouch(object):
             print('[MoveToTouch]: Service call to get block poses failed during approach. Exiting.')
             sys.exit()
         for named_pose in poses:
-            if named_pose.block_id in self.block_name:
+            if named_pose.block_id in self.block_name.split('_')[-1]:
                 pose = named_pose.pose.pose
                 position = (pose.position.x, pose.position.y, pose.position.z) # self.block.get_dimensions()[2]/2.
                 orientation = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
