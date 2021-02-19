@@ -242,8 +242,11 @@ class MoveToTouch(object):
                     success = True
                     break
             if not success:
-                print('[MoveToTouch] Failed to find locate and pick up block.')
-                sys.exit(0)
+                from tamp.misc import ExecutionFailure
+                reason = '[MoveToTouch] Failed to find locate and pick up block.'
+                print(reason)
+                raise ExecutionFailure(reason=reason, fatal=False)
+                # sys.exit(0)
 
             print('[MoveToTouch]: Moving to corrected approach.')
             realRobot.set_joint_position_speed(0.2)
