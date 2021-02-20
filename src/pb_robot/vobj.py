@@ -299,6 +299,20 @@ class MoveFromTouch(object):
             self.recompute_backoff(realRobot, obstacles)
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
 
+        # Check if grasp was missed by checking gripper opening distances
+        if self.use_wrist_camera:
+            min_gripper_width = 0.015
+            gripper_pos = realRobot.hand.joint_positions()
+            grip_width = 0.5*(
+                gripper_pos['panda_finger_joint1'] +
+                gripper_pos['panda_finger_joint2'])
+            if grip_width < min_gripper_width:
+                from tamp.misc import ExecutionFailure
+                realRobot.hand.open()
+                raise ExecutionFailure(
+                    reason="No block detected in gripper",
+                    fatal=False)
+
     def __repr__(self):
         return 'moveFromTouch{}'.format(id(self) % 1000)
 
