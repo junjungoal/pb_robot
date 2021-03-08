@@ -78,6 +78,7 @@ class Manipulator(object):
         # to the arm (normally the grasp matrix)
         self.grabbedRelations = dict()
         self.grabbedObjects = dict()
+        self.grabbedTransform = dict()
 
         # Use IK fast for inverse kinematics
         self.ik_info = ik
@@ -113,7 +114,7 @@ class Manipulator(object):
             for i in self.grabbedObjects.keys():
                 obj = self.grabbedObjects[i]
                 grasp_objF = self.grabbedRelations[i]
-                obj_worldF = numpy.dot(hand_worldF, numpy.linalg.inv(grasp_objF))
+                obj_worldF = numpy.dot(hand_worldF, self.grabbedTransform[i])
                 obj.set_base_link_transform(obj_worldF)
 
     def GetJointLimits(self):
@@ -130,12 +131,14 @@ class Manipulator(object):
         @param relation Transform of object relative to robot'''
         self.grabbedRelations[obj.get_name()] = relation
         self.grabbedObjects[obj.get_name()] = obj
+        self.grabbedTransform[obj.get_name()] = numpy.linalg.inv(relation)
 
     def Release(self, obj):
         '''Dettach an object by removing it from the grabbed object lists
         @param obj The object to be released'''
         self.grabbedObjects.pop(obj.get_name(), None)
         self.grabbedRelations.pop(obj.get_name(), None)
+        self.grabbedTransform.pop(obj.get_name(), None)
 
     def GetEETransform(self):
         '''Get the end effector transform

@@ -20,8 +20,9 @@ class SnapPlanner(object):
         @return joint trajectory or None if plan failed'''
 
         # Check if start and goal are collision-free
-        if (not manip.IsCollisionFree(start_q, obstacles=obstacles)) or (not manip.IsCollisionFree(goal_q, obstacles=obstacles)):
-            return None
+        # Note we check these before calling the SNAP planner.
+        # if (not manip.IsCollisionFree(start_q, obstacles=obstacles)) or (not manip.IsCollisionFree(goal_q, obstacles=obstacles)):
+        #     return None
 
         # Check intermediate points for collisions
         cdist = util.cspaceLength([start_q, goal_q])
@@ -35,6 +36,7 @@ class SnapPlanner(object):
         interp = [numpy.linspace(start_q[i], goal_q[i], count+1).tolist() for i in range(len(start_q))]
         middle_qs = numpy.transpose(interp)[1:-1] # Remove given points
         if not  all((manip.IsCollisionFree(m, obstacles=obstacles) for m in middle_qs)):
+            print('[Snap Planner] Collision.')
             return None
 
         if check_upwards:

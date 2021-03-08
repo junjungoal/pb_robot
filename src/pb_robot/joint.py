@@ -27,9 +27,12 @@ class Joint(object): # inherit what?
                                                   'parentFramePos', 'parentFrameOrn', 'parentIndex'])
         self.JointState = namedtuple('JointState', ['jointPosition', 'jointVelocity',
                                                     'jointReactionForces', 'appliedJointMotorTorque'])
+        self.joint_info = None
 
     def get_joint_info(self):
-        return self.JointInfo(*p.getJointInfo(self.bodyID, self.jointID, physicsClientId=CLIENT))
+        if self.joint_info is None:
+            self.joint_info = self.JointInfo(*p.getJointInfo(self.bodyID, self.jointID, physicsClientId=CLIENT))
+        return self.joint_info
 
     def get_joint_name(self):
         return self.get_joint_info().jointName.decode('UTF-8')
