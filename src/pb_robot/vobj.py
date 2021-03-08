@@ -199,10 +199,10 @@ class MoveToTouch(object):
         print('[MoveToTouch]: Could not find adjusted IK solution.')
         return None
 
-    def simulate(self, timestep, obstacles=[]):
+    def simulate(self, timestep, obstacles=[], sim_noise=False):
         # When use_wrist_camera is enabled in simulation there is no vision
         # system, so we sample a perturbation of the current block pose
-        if self.use_wrist_camera:
+        if self.use_wrist_camera and sim_noise:
             # sample a new pose for the object with 1cm of position noise
             # and 10 degrees of rotation noise about the vertical axis
             pos, orn = self.block.get_pose()
@@ -214,8 +214,10 @@ class MoveToTouch(object):
             start_q = self.manip.GetJointValues()
             result = self.recalculate_qs(start_q, new_pose, obstacles=obstacles)
             if result is None:
-                print('[MoveToTouch] Failed to find locate and pick up block.')
-                sys.exit(0)
+                from tamp.misc import ExecutionFailure
+                reason = '[MoveToTouch] Failed to find locate and pick up block.'
+                print(reason)
+                raise ExecutionFailure(reason=reason, fatal=False)
             else:
                 self.start, self.end = result
                 print('Moving to corrected approach.')
@@ -242,8 +244,11 @@ class MoveToTouch(object):
                     success = True
                     break
             if not success:
-                print('[MoveToTouch] Failed to find locate and pick up block.')
-                sys.exit(0)
+                from tamp.misc import ExecutionFailure
+                reason = '[MoveToTouch] Failed to find locate and pick up block.'
+                print(reason)
+                raise ExecutionFailure(reason=reason, fatal=False)
+                # sys.exit(0)
 
             print('[MoveToTouch]: Moving to corrected approach.')
             realRobot.set_joint_position_speed(0.2)
@@ -293,6 +298,20 @@ class MoveFromTouch(object):
         if self.use_wrist_camera:
             self.recompute_backoff(realRobot, obstacles)
         realRobot.move_from_touch(realRobot.convertToDict(self.end))
+
+        # Check if grasp was missed by checking gripper opening distances
+        if self.use_wrist_camera:
+            min_gripper_width = 0.015
+            gripper_pos = realRobot.hand.joint_positions()
+            grip_width = 0.5*(
+                gripper_pos['panda_finger_joint1'] +
+                gripper_pos['panda_finger_joint2'])
+            if grip_width < min_gripper_width:
+                from tamp.misc import ExecutionFailure
+                realRobot.hand.open()
+                raise ExecutionFailure(
+                    reason="No block detected in gripper",
+                    fatal=False)
 
     def __repr__(self):
         return 'moveFromTouch{}'.format(id(self) % 1000)
