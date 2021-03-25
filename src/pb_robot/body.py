@@ -33,6 +33,12 @@ def createBody(path, **kwargs):
             body_id = pb_robot.utils.load_model(path, **kwargs)
     return Body(body_id, path)
 
+BodyInfo = namedtuple('BodyInfo', ['base_name', 'body_name'])
+DynamicsInfo = namedtuple('DynamicsInfo', ['mass', 'lateral_friction', 'local_inertia_diagonal',
+                                           'local_inertial_pos', 'local_inertial_orn',
+                                           'restitution', 'rolling_friction', 'spinning_friction',
+                                           'contact_damping', 'contact_stiffness', 'body_type',
+                                           'collision_margin'])
 
 class Body(object):
     def __init__(self, bodyID, path=None):
@@ -40,12 +46,8 @@ class Body(object):
         self.id = bodyID
         self.base_link = -1
         self.static_mass = 0
-        self.BodyInfo = namedtuple('BodyInfo', ['base_name', 'body_name'])
-        self.DynamicsInfo = namedtuple('DynamicsInfo', ['mass', 'lateral_friction', 'local_inertia_diagonal', 
-                                                        'local_inertial_pos', 'local_inertial_orn',
-                                                        'restitution', 'rolling_friction', 'spinning_friction',
-                                                        'contact_damping', 'contact_stiffness', 'body_type',
-                                                        'collision_margin'])
+        self.BodyInfo = BodyInfo
+        self.DynamicsInfo = DynamicsInfo
         self.num_joints = p.getNumJoints(self.id, physicsClientId=CLIENT)
         self.joints = [Joint(self, j) for j in range(self.num_joints)]
         self.num_links = p.getNumJoints(self.id, physicsClientId=CLIENT)

@@ -1,8 +1,8 @@
 import pb_robot
 import numpy as np
 import time
-from pb_robot.transformations import quaternion_from_matrix
 import sys
+from pb_robot.transformations import quaternion_from_matrix
 from pb_robot.tsrs.panda_box import ComputePrePose
 from pb_robot.planners.util import cspaceLength
 
@@ -345,6 +345,7 @@ class CartImpedPath(object):
             self.manip.SetJointValues(q)
             time.sleep(self.timestep)
     def execute(self, realRobot=None):
+        import quaternion
         #FIXME adjustment based on current position..? Need to play with how execution goes.
         sim_start = self.ee_path[0, 0:3, 3]
         real_start = realRobot.endpoint_pose()['position']

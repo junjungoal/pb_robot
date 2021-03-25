@@ -14,6 +14,10 @@ def set_client(client):
     global CLIENT
     CLIENT = client
 
+LinkState = namedtuple('LinkState', ['linkWorldPosition', 'linkWorldOrientation',
+                                     'localInertialFramePosition', 'localInertialFrameOrientation',
+                                     'worldLinkFramePosition', 'worldLinkFrameOrientation'])
+
 class Link(object):
     def __init__(self, body, linkID):
         self.body = body
@@ -27,9 +31,7 @@ class Link(object):
         # have a get joint from id? returns the class? 
         self.base_link = body.base_link
 
-        self.LinkState = namedtuple('LinkState', ['linkWorldPosition', 'linkWorldOrientation',
-                                                  'localInertialFramePosition', 'localInertialFrameOrientation',
-                                                  'worldLinkFramePosition', 'worldLinkFrameOrientation'])
+        self.LinkState = LinkState
 
         #parent_link_from_joint = get_link_parent
 

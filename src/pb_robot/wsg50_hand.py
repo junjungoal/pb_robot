@@ -62,6 +62,7 @@ import os
 
 class WSG50HandReal(object):
     def __init__(self):
+        #import rospy
         # If rosnode is not running, start one
         #if 'unnamed' in rospy.get_name(): # TODO: uncomment
             #rospy.init_node('wsg50_node', anonymous=True) # TODO: uncomment
@@ -87,6 +88,7 @@ class WSG50HandReal(object):
 
     ''' TODO: uncomment when running ROS
     def get_width(self):
+        import rospy
         try:
             hand_status = rospy.wait_for_message("wsg_50_driver/status", msg.Status, timeout=2)
             return hand_status.width

@@ -15,19 +15,22 @@ def set_client(client):
     global CLIENT
     CLIENT = client
 
+JointInfo = namedtuple('JointInfo', ['jointIndex', 'jointName', 'jointType',
+                                     'qIndex', 'uIndex', 'flags', 'jointDamping',
+                                     'jointFriction', 'jointLowerLimit', 'jointUpperLimit',
+                                     'jointMaxForce', 'jointMaxVelocity', 'linkName', 'jointAxis',
+                                     'parentFramePos', 'parentFrameOrn', 'parentIndex'])
+JointState = namedtuple('JointState', ['jointPosition', 'jointVelocity',
+                                       'jointReactionForces', 'appliedJointMotorTorque'])
+
 class Joint(object): # inherit what?
     def __init__(self, body, jointID):
         self.body = body
         self.bodyID = self.body.id
         self.jointID = jointID
-        self.JointInfo = namedtuple('JointInfo', ['jointIndex', 'jointName', 'jointType',
-                                                  'qIndex', 'uIndex', 'flags', 'jointDamping', 
-                                                  'jointFriction', 'jointLowerLimit', 'jointUpperLimit',
-                                                  'jointMaxForce', 'jointMaxVelocity', 'linkName', 'jointAxis',
-                                                  'parentFramePos', 'parentFrameOrn', 'parentIndex'])
-        self.JointState = namedtuple('JointState', ['jointPosition', 'jointVelocity',
-                                                    'jointReactionForces', 'appliedJointMotorTorque'])
         self.joint_info = None
+        self.JointInfo = JointInfo
+        self.JointState = JointState
 
     def get_joint_info(self):
         if self.joint_info is None:
