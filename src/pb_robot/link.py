@@ -34,6 +34,7 @@ class Link(object):
         self.LinkState = LinkState
 
         #parent_link_from_joint = get_link_parent
+        self.link_ancestors = None
 
     def get_link_name(self):  
         if self.linkID == self.base_link:
@@ -85,10 +86,13 @@ class Link(object):
         #return children.get(self, []) 
 
     def get_link_ancestors(self):
-        parent = self.get_link_parent()
-        if parent is None:
-            return []
-        return parent.get_link_ancestors() + [parent]
+        if self.link_ancestors is None:
+            parent = self.get_link_parent()
+            if parent is None:
+                self.link_ancestors = []
+            else:
+                self.link_ancestors = parent.get_link_ancestors() + [parent]
+        return self.link_ancestors
 
     def get_joint_ancestors(self): 
         return [l.parentJoint for l in self.get_link_ancestors()] + [self.parentJoint]

@@ -66,6 +66,7 @@ class Body(object):
             self.readableName = ((path.split('/')[-1]).split('.'))[0]
         else:
             self.readableName = None
+        self.all_link_children = None
 
     def __repr__(self):
         if self.readableName is None: return self.get_name()
@@ -355,12 +356,14 @@ class Body(object):
         return {link: link.get_link_parent() for link in self.links}
 
     def get_all_link_children(self):
-        children = {}
-        for child, parent in self.get_all_link_parents().items():
-            if parent not in children:
-                children[parent] = []
-            children[parent].append(child)
-        return children
+        if self.all_link_children is None:
+            children = {}
+            for child, parent in self.get_all_link_parents().items():
+                if parent not in children:
+                    children[parent] = []
+                children[parent].append(child)
+            self.all_link_children = children
+        return self.all_link_children
 
     def get_fixed_links(self):
         edges = defaultdict(list)
