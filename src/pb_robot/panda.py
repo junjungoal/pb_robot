@@ -90,6 +90,7 @@ class Manipulator(object):
 
         self.moving_links = None
         self.check_link_pairs = None
+        self.collisionfn_cache = {}
 
     def get_name(self):
         return self.__robot.get_name()
@@ -194,6 +195,21 @@ class Manipulator(object):
                 return self.ComputeIK(transform)
         return q
 
+    def get_collisionfn(self, obstacles=None, self_collisions=True):
+        if obstacles is None:
+            # If no set of obstacles given, assume all obstacles in the environment (that arent the robot and not grasped)
+            obstacles = [b for b in pb_robot.utils.get_bodies() if self.get_name() not in b.get_name()
+                         and b.get_name() not in self.grabbedObjects.keys()]
+        attachments = [g for g in self.grabbedObjects.values()]
+        key = (frozenset(obstacles), frozenset(attachments), self_collisions,
+               self.check_link_pairs if self.check_link_pairs is None else frozenset(self.check_link_pairs),
+               self.moving_links if self.moving_links is None else frozenset(self.moving_links))
+        if key not in self.collisionfn_cache:
+            self.collisionfn_cache[key] = pb_robot.collisions.get_collision_fn(
+                self, self.joints, obstacles, attachments, self_collisions,
+                check_link_pairs=self.check_link_pairs, unfrozen=self.moving_links)
+        return self.collisionfn_cache[key]
+
     def IsCollisionFree(self, q, obstacles=None, self_collisions=True, debug=False, inflate_blocks=False):
         '''Check if a configuration is collision-free. Given any grasped objects
         we do not collision-check against those.
@@ -204,14 +220,7 @@ class Manipulator(object):
         oldq = self.GetJointValues()
         self.SetJointValues(oldq)
 
-        if obstacles is None:
-            # If no set of obstacles given, assume all obstacles in the environment (that arent the robot and not grasped)
-            obstacles = [b for b in pb_robot.utils.get_bodies() if self.get_name() not in b.get_name() and b.get_name() not in self.grabbedObjects.keys()]
-        attachments = [g for g in self.grabbedObjects.values()]
-
-        collisionfn, self.check_link_pairs, self.moving_links = pb_robot.collisions.get_collision_fn(self, self.joints, obstacles,
-                                                                                           attachments, self_collisions, check_link_pairs=self.check_link_pairs,
-                                                                                           unfrozen=self.moving_links)
+        collisionfn, self.check_link_pairs, self.moving_links = self.get_collisionfn(obstacles=obstacles, self_collisions=self_collisions)
 
         # Evaluate if in collision
         val = not collisionfn(q, inflate_blocks=inflate_blocks, debug=debug)
