@@ -11,3 +11,4 @@ temp
 **~
 **/*.swp
 **/*.~un
+src/pb_robot/tmp_urdfs/
