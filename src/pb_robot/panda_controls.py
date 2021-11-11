@@ -25,7 +25,7 @@ class PandaControls(object):
                             velocityGains=[1.]*n,
                             physicsClientId=pb_robot.utils.CLIENT)
             p.stepSimulation(physicsClientId=pb_robot.utils.CLIENT)
-            time.sleep(0.01)
+            #time.sleep(0.01)
 
             dist = numpy.linalg.norm(numpy.subtract(self.arm.GetJointValues(), q))
             #print(dist)
