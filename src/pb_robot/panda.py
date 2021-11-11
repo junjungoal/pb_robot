@@ -107,22 +107,23 @@ class Manipulator(object):
         @return Nx1 array of joint values'''
         return numpy.array(self.__robot.get_joint_positions(self.joints))
 
-    def SetJointValues(self, q):
+    def SetJointValues(self, q, duration=1):
         '''Set the robot to configuration q. Update the location of any
         grasped objects.
         @param Nx1 desired configuration'''
-        self.__robot.set_joint_positions(self.joints, q)
+        for _ in range(duration): # give pushed objects time to settle
+            self.__robot.set_joint_positions(self.joints, q)
 
-        #If exists grabbed object, update its position too
-        if len(self.grabbedObjects.keys()) > 0:
-            hand_worldF = self.GetEETransform()
-            for i in self.grabbedObjects.keys():
-                obj = self.grabbedObjects[i]
-                grasp_objF = self.grabbedRelations[i]
-                obj_worldF = numpy.dot(hand_worldF, self.grabbedTransform[i])
-                obj.set_base_link_transform(obj_worldF)
-        for _ in range(100):
-            p.stepSimulation(physicsClientId=CLIENT)
+            #If exists grabbed object, update its position too
+            if len(self.grabbedObjects.keys()) > 0:
+                hand_worldF = self.GetEETransform()
+                for i in self.grabbedObjects.keys():
+                    obj = self.grabbedObjects[i]
+                    grasp_objF = self.grabbedRelations[i]
+                    obj_worldF = numpy.dot(hand_worldF, self.grabbedTransform[i])
+                    obj.set_base_link_transform(obj_worldF)
+            if duration > 1:
+                p.stepSimulation(physicsClientId=CLIENT)
 
     def GetJointLimits(self):
         '''Return the upper and lower joint position limits
@@ -316,7 +317,7 @@ class Manipulator(object):
                                self.ft_joint.jointID,
                                physicsClientId=CLIENT)[2]
 
-    def ExecutePositionPath(self, path, timestep=0.05, control=False):
+    def ExecutePositionPath(self, path, timestep=0.05, control=False, duration=1):
         '''Simulate a configuration space path by incrementally setting the
         joint values. This is instead of using control based methods
         #TODO add checks to insure path is valid.
@@ -348,7 +349,7 @@ class Manipulator(object):
         # teleport robot between configurations in path
         else:
             for i in range(len(path)):
-                self.SetJointValues(path[i])
+                self.SetJointValues(path[i], duration=duration)
                 time.sleep(timestep)
 
 class PandaHand(pb_robot.body.Body):

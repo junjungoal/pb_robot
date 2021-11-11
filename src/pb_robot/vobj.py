@@ -108,7 +108,7 @@ class JointSpacePath(object):
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
-        self.manip.ExecutePositionPath(self.path, timestep=timestep, control=control)
+        self.manip.ExecutePositionPath(self.path, timestep=timestep)
     def execute(self, realRobot=None, obstacles=[]):
         print('Setting speed:', self.speed)
         realRobot.set_joint_position_speed(self.speed)
@@ -116,6 +116,33 @@ class JointSpacePath(object):
         realRobot.execute_position_path(dictPath)
     def __repr__(self):
         return 'j_path{}'.format(id(self) % 1000)
+
+class JointSpacePushPath(object):
+    def __init__(self, manip, path, speed=0.6):
+        self.manip = manip
+        self.path = path
+        self.speed = speed
+    def simulate(self, timestep, obstacles=[], control=False):
+        curr_q = self.manip.GetJointValues()
+        start_q = self.path[0]
+        for q1, q2 in zip(curr_q, start_q):
+            if np.abs(q1-q2) > 0.01:
+                print('Actual:', curr_q)
+                print('From planner:', start_q)
+                input('ERROR')
+        self.manip.ExecutePositionPath(self.path, timestep=timestep, control=control, duration=100)
+    def execute(self, realRobot=None, obstacles=[]):
+        # TODO: when generating a push path, verify that the distance between each
+        # individual joint configuration is close. Don't want to break the panda
+        # by having it jump around too far in a single time step
+        input('You are about to execute a Push Path on the robot. Have you verified that \
+        the given joint space trajectory is smooth??')
+        print('Setting speed:', self.speed)
+        realRobot.set_joint_position_speed(self.speed)
+        dictPath = [realRobot.convertToDict(q) for q in self.path]
+        realRobot.execute_position_path(dictPath)
+    def __repr__(self):
+        return 'push_path{}'.format(id(self) % 1000)
 
 class MoveToTouch(object):
     def __init__(self, manip, start, end, grasp, block, use_wrist_camera=False):
