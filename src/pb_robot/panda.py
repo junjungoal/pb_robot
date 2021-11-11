@@ -69,9 +69,13 @@ class Manipulator(object):
         self.snap = pb_robot.planners.SnapPlanner()
 
         # Add force torque sensor at wrist
-        #self.ft_joint = self.__robot.joint_from_name('panda_hand_joint')
-        #p.enableJointForceTorqueSensor(self.__robot.id, self.ft_joint.jointID, enableSensor=1)
-        #self.control = PandaControls(self)
+        self.ft_joint = self.__robot.joint_from_name('panda_hand_joint')
+        for jID in self.jointsID:
+            p.enableJointForceTorqueSensor(self.__robot.id,
+                                            jID,
+                                            enableSensor=1,
+                                            physicsClientId=pb_robot.utils.CLIENT)
+        self.control = PandaControls(self)
 
         # We manually maintain the kinematic tree of grasped objects by
         # keeping track of a dictionary of the objects and their relations
@@ -310,15 +314,40 @@ class Manipulator(object):
                                self.ft_joint.jointID,
                                physicsClientId=CLIENT)[2]
 
-    def ExecutePositionPath(self, path, timestep=0.05):
+    def ExecutePositionPath(self, path, timestep=0.05, control=False):
         '''Simulate a configuration space path by incrementally setting the
         joint values. This is instead of using control based methods
         #TODO add checks to insure path is valid.
         @param path MxN list of configurations where M is number of positions
         @param timestep Wait time between each configuration '''
-        for i in range(len(path)):
-            self.SetJointValues(path[i])
-            time.sleep(timestep)
+        if control:
+            # add constraint between panda gripper and held object
+            constraints = []
+            for obj_name in self.grabbedObjects:
+                grasp_objF_pose = pb_robot.geometry.pose_from_tform(self.grabbedRelations[obj_name])
+                c = p.createConstraint(self.grabbedObjects[obj_name].id,
+                                    -1,
+                                    self.bodyID,
+                                    self.eeFrame.linkID,
+                                    p.JOINT_FIXED,
+                                    [0., 0., 0.],
+                                    grasp_objF_pose[0],
+                                    [0., 0., 0.],
+                                    grasp_objF_pose[1],
+                                    physicsClientId=pb_robot.utils.CLIENT)
+                constraints.append(c)
+            # control to each configuration in path
+            for q in path:
+                self.control.positionControl(q)
+                p.stepSimulation(physicsClientId=pb_robot.utils.CLIENT)
+            # remove constraints
+            for c in constraints:
+                p.removeConstraint(c, physicsClientId=pb_robot.utils.CLIENT)
+        # teleport robot between configurations in path
+        else:
+            for i in range(len(path)):
+                self.SetJointValues(path[i])
+                time.sleep(timestep)
 
 class PandaHand(pb_robot.body.Body):
     '''Set position commands for the panda hand. Have not yet included

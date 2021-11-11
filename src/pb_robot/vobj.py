@@ -100,7 +100,7 @@ class JointSpacePath(object):
         self.manip = manip
         self.path = path
         self.speed = speed
-    def simulate(self, timestep, obstacles=[]):
+    def simulate(self, timestep, obstacles=[], control=False):
         curr_q = self.manip.GetJointValues()
         start_q = self.path[0]
         for q1, q2 in zip(curr_q, start_q):
@@ -108,7 +108,7 @@ class JointSpacePath(object):
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
-        self.manip.ExecutePositionPath(self.path, timestep=timestep)
+        self.manip.ExecutePositionPath(self.path, timestep=timestep, control=control)
     def execute(self, realRobot=None, obstacles=[]):
         print('Setting speed:', self.speed)
         realRobot.set_joint_position_speed(self.speed)

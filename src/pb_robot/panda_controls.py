@@ -6,7 +6,6 @@ import pb_robot
 class PandaControls(object):
     def __init__(self, arm):
         self.arm = arm
-        print("Set up")
 
     def clampTorque(self, tau_d):
         tau_limit = [87, 87, 87, 87, 50, 50, 50] #robot.arm.torque_limits
@@ -22,12 +21,15 @@ class PandaControls(object):
                             targetPositions=q,
                             targetVelocities=[0]*n,
                             forces=self.arm.torque_limits,
-                            positionGains=[0.1]*n,
-                            velocityGains=[1]*n)
-            p.stepSimulation()
+                            positionGains=[.01]*n,
+                            velocityGains=[1.]*n,
+                            physicsClientId=pb_robot.utils.CLIENT)
+            p.stepSimulation(physicsClientId=pb_robot.utils.CLIENT)
             time.sleep(0.01)
 
-            if numpy.linalg.norm(numpy.subtract(self.arm.GetJointValues(), q)) < threshold:
+            dist = numpy.linalg.norm(numpy.subtract(self.arm.GetJointValues(), q))
+            #print(dist)
+            if dist < threshold:
                 break
 
     def moveToTouch(self, q_desired):
