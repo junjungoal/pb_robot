@@ -123,7 +123,8 @@ class Manipulator(object):
                     obj_worldF = numpy.dot(hand_worldF, self.grabbedTransform[i])
                     obj.set_base_link_transform(obj_worldF)
             if duration > 1:
-                p.stepSimulation(physicsClientId=CLIENT)
+                for _ in range(duration):
+                    p.stepSimulation(physicsClientId=CLIENT)
 
     def GetJointLimits(self):
         '''Return the upper and lower joint position limits

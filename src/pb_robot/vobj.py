@@ -130,7 +130,7 @@ class JointSpacePushPath(object):
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
-        self.manip.ExecutePositionPath(self.path, timestep=timestep, control=control, duration=100)
+        self.manip.ExecutePositionPath(self.path, timestep=timestep, control=control, duration=10)
     def execute(self, realRobot=None, obstacles=[]):
         # TODO: when generating a push path, verify that the distance between each
         # individual joint configuration is close. Don't want to break the panda
@@ -248,7 +248,25 @@ class MoveToTouch(object):
             else:
                 self.start, self.end = result
                 print('Moving to corrected approach.')
-
+        '''
+        import pybullet as p
+        while True:
+            ans = input('a: for approach, c: for contact, q: to continue')
+            if ans in ['a', 'c']:
+                if ans == 'a':
+                    self.manip.SetJointValues(self.start)
+                elif ans == 'c':
+                    self.manip.SetJointValues(self.end)
+                print('pausing (make sure you are visualizing the correct robot)\nCTRL+C to continue')
+                try:
+                    while True:
+                        p.stepSimulation()
+                except KeyboardInterrupt:
+                    #import pdb; pdb.set_trace()
+                    pass
+            else:
+                break
+        '''
         length = cspaceLength([self.start, self.end])
         print('CSpaceLength:', length)
         self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep)
