@@ -384,10 +384,10 @@ def connect(use_gui=True, shadows=True):
         # p.COV_ENABLE_PLANAR_REFLECTION
         # p.COV_ENABLE_SINGLE_STEP_RENDERING
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, False, physicsClientId=sim_id)
-        p.configureDebugVisualizer(p.COV_ENABLE_TINY_RENDERER, False, physicsClientId=sim_id)
-        p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, False, physicsClientId=sim_id)
-        p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, False, physicsClientId=sim_id)
-        p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, False, physicsClientId=sim_id)
+        p.configureDebugVisualizer(p.COV_ENABLE_TINY_RENDERER, True, physicsClientId=sim_id)
+        p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, True, physicsClientId=sim_id)
+        p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, True, physicsClientId=sim_id)
+        p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, True, physicsClientId=sim_id)
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, shadows, physicsClientId=sim_id)
 
     # you can also use GUI mode, for faster OpenGL rendering (instead of TinyRender CPU)
@@ -538,13 +538,15 @@ def set_camera_pose2(world_from_camera, distance=2):
     #p.resetDebugVisualizerCamera(cameraDistance=distance, cameraYaw=math.degrees(yaw), cameraPitch=math.degrees(-pitch),
     #                             cameraTargetPosition=target_world, physicsClientId=CLIENT)
 
-CameraImage = namedtuple('CameraImage', ['rgbPixels', 'depthPixels', 'segmentationMaskBuffer'])
+CameraImage = namedtuple('CameraImage', ['rgbPixels', 'depthPixels', 'segmentationMaskBuffer', 'points'])
 
 def demask_pixel(pixel):
     # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/segmask_linkindex.py
     # Not needed when p.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX is not enabled
     #if 0 <= pixel:
     #    return None
+    if pixel == -1:
+        return -1, -1
     # Returns a large value when undefined
     body = pixel & ((1 << 24) - 1)
     link = (pixel >> 24) - 1
@@ -566,7 +568,7 @@ def get_projection_matrix(width, height, vertical_fov, near, far):
     OpenGL projection matrix
     :param width: 
     :param height: 
-    :param vertical_fov: vertical field of view in radians
+    :param vertical_fov: vertical field of view in degrees
     :param near: 
     :param far: 
     :return: 
@@ -577,7 +579,7 @@ def get_projection_matrix(width, height, vertical_fov, near, far):
     # gluPerspective() requires only 4 parameters; vertical field of view (FOV),
     # the aspect ratio of width to height and the distances to near and far clipping planes.
     aspect = float(width) / height
-    fov_degrees = math.degrees(vertical_fov)
+    fov_degrees = vertical_fov #math.degrees(vertical_fov)
     projection_matrix = p.computeProjectionMatrixFOV(fov=fov_degrees, aspect=aspect,
                                                      nearVal=near, farVal=far, physicsClientId=CLIENT)
     # projection_matrix = p.computeProjectionMatrix(0, width, height, 0, near, far, physicsClientId=CLIENT)
@@ -601,8 +603,26 @@ def image_from_segmented(segmented, color_from_body=None):
             image[r, c, :] = color_from_body.get(body, (0, 0, 0))
     return image
 
+def get_world_plane_vectors(view_matrix, vertical_fov, width, height):
+    far_dist = 10000
+
+    VM = np.array(view_matrix).reshape(4, 4).T
+    VMinv = np.linalg.inv(VM)
+
+    far_dist_vert = far_dist*np.tan(np.deg2rad(vertical_fov/2))
+    v_vec2, v_vec1 = np.array([[0, far_dist_vert, -far_dist, 1]]).T, np.array([[0, -far_dist_vert, -far_dist, 1]]).T
+    v_vec2, v_vec1 = np.dot(VMinv, v_vec2), np.dot(VMinv, v_vec1)
+    vertical = (v_vec2 - v_vec1)[:, 0].tolist()
+
+    far_dist_hor = far_dist_vert * width/height
+    h_vec2, h_vec1 = np.array([[far_dist_hor, 0, -far_dist, 1]]).T, np.array([[-far_dist_hor, 0, -far_dist, 1]]).T
+    h_vec2, h_vec1 = np.dot(VMinv, h_vec2), np.dot(VMinv, h_vec1)
+    horizon = (h_vec2 - h_vec1)[:, 0].tolist()
+
+    return far_dist, vertical, horizon
+
 def get_image(camera_pos, target_pos, width=640, height=480, vertical_fov=60.0, near=0.02, far=5.0,
-              segment=False, segment_links=False):
+              segment=False, segment_links=False, return_points_body_ids=[], sparsify_points=1, visualize_points=False):
     # computeViewMatrixFromYawPitchRoll
     view_matrix = p.computeViewMatrix(cameraEyePosition=camera_pos, cameraTargetPosition=target_pos,
                                       cameraUpVector=[0, 0, 1], physicsClientId=CLIENT)
@@ -619,18 +639,99 @@ def get_image(camera_pos, target_pos, width=640, height=480, vertical_fov=60.0, 
                                           shadow=False,
                                           flags=flags,
                                           renderer=p.ER_TINY_RENDERER, # p.ER_BULLET_HARDWARE_OPENGL
-                                          physicsClientId=CLIENT)[2:])
+                                          physicsClientId=CLIENT)[2:], None)
     depth = far * near / (far - (far - near) * image.depthPixels)
     # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/pointCloudFromCameraImage.py
     # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/getCameraImageTest.py
     segmented = None
     if segment:
-        segmented = np.zeros(image.segmentationMaskBuffer.shape + (2,))
-        for r in range(segmented.shape[0]):
-            for c in range(segmented.shape[1]):
-                pixel = image.segmentationMaskBuffer[r, c]
-                segmented[r, c, :] = demask_pixel(pixel)
-    return CameraImage(image.rgbPixels, depth, segmented)
+        if segment_links:
+            segmented = np.zeros(image.segmentationMaskBuffer.shape + (2,))
+            for r in range(segmented.shape[0]):
+                for c in range(segmented.shape[1]):
+                    pixel = image.segmentationMaskBuffer[r, c]
+                    segmented[r, c, :] = demask_pixel(pixel)
+        else:
+            segmented = image.segmentationMaskBuffer
+
+    # Adapted from: https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/pointCloudFromCameraImage.py
+    points = None
+    if len(return_points_body_ids) > 0 and segment:
+        points = { k: [] for k in return_points_body_ids}
+        body_ids_set = set(points.keys())
+
+        if visualize_points:
+            visualShapeId = p.createVisualShape(shapeType=p.GEOM_SPHERE, rgbaColor=[1, 1, 1, 1], radius=0.005)
+            collisionShapeId = -1
+        
+        far_dist, vertical, horizon = get_world_plane_vectors(view_matrix, vertical_fov, width, height)
+
+        for h in range(0, height, sparsify_points):
+            for w in range(0, width, sparsify_points):
+                if int(segmented[h, w]) in body_ids_set:
+
+                    rayForward = [(target_pos[0] - camera_pos[0]), (target_pos[1] - camera_pos[1]), (target_pos[2] - camera_pos[2])]
+                    lenFwd = math.sqrt(rayForward[0] * rayForward[0] + rayForward[1] * rayForward[1] +
+                                        rayForward[2] * rayForward[2])
+                    invLen = far_dist * 1. / lenFwd
+                    rayForward = [invLen * rayForward[0], invLen * rayForward[1], invLen * rayForward[2]]
+                    rayFrom = camera_pos
+                    oneOverWidth = float(1) / float(width)
+                    oneOverHeight = float(1) / float(height)
+
+                    dHor = [horizon[0] * oneOverWidth, horizon[1] * oneOverWidth, horizon[2] * oneOverWidth]
+                    dVer = [vertical[0] * oneOverHeight, vertical[1] * oneOverHeight, vertical[2] * oneOverHeight]
+
+                    mouseX, mouseY = w, h
+                    ortho = [
+                        -0.5 * horizon[0] + 0.5 * vertical[0] + float(mouseX) * dHor[0] - float(mouseY) * dVer[0],
+                        -0.5 * horizon[1] + 0.5 * vertical[1] + float(mouseX) * dHor[1] - float(mouseY) * dVer[1],
+                        -0.5 * horizon[2] + 0.5 * vertical[2] + float(mouseX) * dHor[2] - float(mouseY) * dVer[2]
+                    ]
+
+                    rayTo = [
+                        rayFrom[0] + rayForward[0] + ortho[0], rayFrom[1] + rayForward[1] + ortho[1],
+                        rayFrom[2] + rayForward[2] + ortho[2]
+                    ]
+                    lenOrtho = math.sqrt(ortho[0] * ortho[0] + ortho[1] * ortho[1] + ortho[2] * ortho[2])
+                    alpha = math.atan(lenOrtho / far_dist)  
+
+                    rf = np.array(rayFrom)
+                    rt = np.array(rayTo)
+                    vec = rt - rf
+                    l = np.sqrt(np.dot(vec, vec))
+                    d = depth[h, w]
+                    d /= math.cos(alpha)
+                    newTo = (d / l) * vec + rf
+
+                    points[int(segmented[h,w])].append(newTo)
+
+                    if visualize_points:
+                        p.addUserDebugLine(rayFrom, newTo, [1, 0, 0])
+                        mb = p.createMultiBody(baseMass=0,
+                                            baseCollisionShapeIndex=collisionShapeId,
+                                            baseVisualShapeIndex=visualShapeId,
+                                            basePosition=newTo,
+                                            useMaximalCoordinates=True)
+                        color = image.rgbPixels[h, w]
+                        color = [color[0] / 255., color[1] / 255., color[2] / 255., 1.]
+                        p.changeVisualShape(mb, -1, rgbaColor=color)
+        for k in points:
+            points[k] = np.array(points[k])
+
+    return CameraImage(image.rgbPixels, depth, segmented, points)
+
+def viz_points(points, sparsify=1):
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    colors = ['r', 'g', 'b', 'y', 'k', 'p']
+    axes = fig.subplots(1, 1, subplot_kw={'projection': '3d'})
+    for ix, bodyId in enumerate(points.keys()):
+        xs = points[bodyId][::sparsify, 0]
+        ys = points[bodyId][::sparsify, 1]
+        zs = points[bodyId][::sparsify, 2]
+        axes.scatter(xs, ys, zs, c=colors[ix])
+    plt.show()
 
 def set_default_camera():
     set_camera(160, -35, 2.5, geometry.Point())
