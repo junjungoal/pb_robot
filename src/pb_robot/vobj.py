@@ -118,9 +118,10 @@ class JointSpacePath(object):
         return 'j_path{}'.format(id(self) % 1000)
 
 class JointSpacePushPath(object):
-    def __init__(self, manip, path, speed=0.6):
+    def __init__(self, manip, path, tool_tforms, speed=0.6):
         self.manip = manip
         self.path = path
+        self.tool_tforms = tool_tforms
         self.speed = speed
     def simulate(self, timestep, obstacles=[], control=False):
         curr_q = self.manip.GetJointValues()
@@ -130,7 +131,7 @@ class JointSpacePushPath(object):
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
-        self.manip.ExecutePositionPath(self.path, timestep=timestep, control=control, duration=10)
+        self.manip.ExecutePositionPath(self.path, tool_path=self.tool_tforms, timestep=timestep, control=control, duration=10)
     def execute(self, realRobot=None, obstacles=[]):
         # TODO: when generating a push path, verify that the distance between each
         # individual joint configuration is close. Don't want to break the panda

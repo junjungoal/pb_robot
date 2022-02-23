@@ -107,7 +107,7 @@ class Manipulator(object):
         @return Nx1 array of joint values'''
         return numpy.array(self.__robot.get_joint_positions(self.joints))
 
-    def SetJointValues(self, q, duration=1):
+    def SetJointValues(self, q, duration=1, tool_tform=None):
         '''Set the robot to configuration q. Update the location of any
         grasped objects.
         @param Nx1 desired configuration'''
@@ -115,10 +115,14 @@ class Manipulator(object):
             self.__robot.set_joint_positions(self.joints, q)
 
             #If exists grabbed object, update its position too
-            if len(self.grabbedObjects.keys()) > 0:
-                hand_worldF = self.GetEETransform()
-                for i in self.grabbedObjects.keys():
-                    obj = self.grabbedObjects[i]
+            # if tool_tform passed in then update to that tform,
+            # else update relative to gripper
+            for i in self.grabbedObjects:
+                obj = self.grabbedObjects[i]
+                if ('tool' in i) and (tool_tform is not None):
+                    obj.set_base_link_transform(tool_tform)
+                else:
+                    hand_worldF = self.GetEETransform()
                     grasp_objF = self.grabbedRelations[i]
                     obj_worldF = numpy.dot(hand_worldF, self.grabbedTransform[i])
                     obj.set_base_link_transform(obj_worldF)
@@ -318,7 +322,7 @@ class Manipulator(object):
                                self.ft_joint.jointID,
                                physicsClientId=CLIENT)[2]
 
-    def ExecutePositionPath(self, path, timestep=0.05, control=False, duration=1):
+    def ExecutePositionPath(self, path, tool_path=None, timestep=0.05, control=False, duration=1):
         '''Simulate a configuration space path by incrementally setting the
         joint values. This is instead of using control based methods
         #TODO add checks to insure path is valid.
@@ -350,7 +354,11 @@ class Manipulator(object):
         # teleport robot between configurations in path
         else:
             for i in range(len(path)):
-                self.SetJointValues(path[i], duration=duration)
+                if tool_path:
+                    tool_tform_i = tool_path[i]
+                else:
+                    tool_tform_i = None
+                self.SetJointValues(path[i], duration=duration, tool_tform=tool_tform_i)
                 time.sleep(timestep)
 
 class PandaHand(pb_robot.body.Body):
