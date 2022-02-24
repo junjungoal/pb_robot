@@ -108,7 +108,8 @@ class JointSpacePath(object):
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
-        self.manip.ExecutePositionPath(self.path, timestep=timestep)
+        collisions_detected = self.manip.ExecutePositionPath(self.path, timestep=timestep, obstacles=obstacles)
+        return collisions_detected
     def execute(self, realRobot=None, obstacles=[]):
         print('Setting speed:', self.speed)
         realRobot.set_joint_position_speed(self.speed)
@@ -131,7 +132,8 @@ class JointSpacePushPath(object):
                 print('Actual:', curr_q)
                 print('From planner:', start_q)
                 input('ERROR')
-        self.manip.ExecutePositionPath(self.path, tool_path=self.tool_tforms, timestep=timestep, control=control, duration=10)
+        collisions_detected = self.manip.ExecutePositionPath(self.path, tool_path=self.tool_tforms, timestep=timestep, control=control, duration=10, obstacles=obstacles)
+        return collisions_detected
     def execute(self, realRobot=None, obstacles=[]):
         # TODO: when generating a push path, verify that the distance between each
         # individual joint configuration is close. Don't want to break the panda
@@ -270,8 +272,8 @@ class MoveToTouch(object):
         '''
         length = cspaceLength([self.start, self.end])
         print('CSpaceLength:', length)
-        self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep)
-
+        collisions_detected = self.manip.ExecutePositionPath([self.start, self.end], timestep=timestep, obstacles=obstacles)
+        return collisions_detected
     def execute(self, realRobot=None, obstacles=[]):
         if self.use_wrist_camera:
             success = False
@@ -312,7 +314,8 @@ class MoveFromTouch(object):
         self.use_wrist_camera = use_wrist_camera
     def simulate(self, timestep, obstacles=[]):
         start = self.manip.GetJointValues()
-        self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
+        collisions_detected = self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
+        return collisions_detected
     def recompute_backoff(self, realRobot, obstacles):
         curr_q = realRobot.convertToList(realRobot.joint_angles())
         grasp_tform = self.manip.ComputeFK(curr_q)

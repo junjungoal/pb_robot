@@ -322,7 +322,7 @@ class Manipulator(object):
                                self.ft_joint.jointID,
                                physicsClientId=CLIENT)[2]
 
-    def ExecutePositionPath(self, path, tool_path=None, timestep=0.05, control=False, duration=1):
+    def ExecutePositionPath(self, path, tool_path=None, timestep=0.05, control=False, duration=1, obstacles=[]):
         '''Simulate a configuration space path by incrementally setting the
         joint values. This is instead of using control based methods
         #TODO add checks to insure path is valid.
@@ -360,6 +360,28 @@ class Manipulator(object):
                     tool_tform_i = None
                 self.SetJointValues(path[i], duration=duration, tool_tform=tool_tform_i)
                 time.sleep(timestep)
+
+                collision_detected = self.check_collisions(obstacles)
+                if collision_detected: return collision_detected
+        return False
+
+
+    def check_collisions(self, obstacles):
+        p.performCollisionDetection(physicsClientId=pb_robot.utils.CLIENT)
+        for obstacle in obstacles:
+            if 'tunnel' in obstacle.readableName:
+                # check for collisions between gripper and obstacles
+                points = p.getContactPoints(self.bodyID, obstacle.id, physicsClientId=pb_robot.utils.CLIENT)
+                if len(points) > 0:
+                    return True
+                # check for collisions between tool and obstacles
+                for obj_name, object in self.grabbedObjects.items():
+                    if 'tool' in obj_name:
+                        points = p.getContactPoints(object.id, obstacle.id, physicsClientId=pb_robot.utils.CLIENT)
+                        if len(points) > 0:
+                            return True
+        return False
+
 
 class PandaHand(pb_robot.body.Body):
     '''Set position commands for the panda hand. Have not yet included
