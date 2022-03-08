@@ -2,7 +2,7 @@ from collections import defaultdict, deque, namedtuple
 import pb_robot.helper as helper
 
 # Mesh & Pointcloud Files
-Mesh = namedtuple('Mesh', ['vertices', 'faces'])
+Mesh = namedtuple('Mesh', ['vertices', 'faces', 'normals'])
 
 def obj_file_from_mesh(mesh, under=True):
     """
@@ -47,8 +47,9 @@ def get_connected_components(vertices, edges):
     return clusters
 
 def read_obj(path, decompose=True):
-    mesh = Mesh([], [])
+    mesh = Mesh([], [], [])
     meshes = {}
+    normals = []
     vertices = []
     faces = []
     for line in helper.read(path).split('\n'):
@@ -57,19 +58,22 @@ def read_obj(path, decompose=True):
             continue
         if tokens[0] == 'o':
             name = tokens[1]
-            mesh = Mesh([], [])
+            mesh = Mesh([], [], [])
             meshes[name] = mesh
         elif tokens[0] == 'v':
             vertex = tuple(map(float, tokens[1:4]))
             vertices.append(vertex)
-        elif tokens[0] in ('vn', 's'):
+        elif tokens[0] == 'vn': 
+            normal = tuple(map(float, tokens[1:4]))
+            normals.append(normal)
+        elif tokens[0] == 's':
             pass
         elif tokens[0] == 'f':
             face = tuple(int(token.split('/')[0]) - 1 for token in tokens[1:])
             faces.append(face)
             mesh.faces.append(face)
     if not decompose:
-        return Mesh(vertices, faces)
+        return Mesh(vertices, faces, normals)
     #if not meshes:
     #    # TODO: ensure this still works if no objects
     #    meshes[None] = mesh

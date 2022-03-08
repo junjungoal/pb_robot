@@ -329,7 +329,7 @@ class PandaHand(pb_robot.body.Body):
             urdf_file = 'models/franka_description/robots/hand.urdf'
             with pb_robot.helper.HideOutput():
                 with pb_robot.utils.LockRenderer():
-                    bodyID = pb_robot.utils.load_model(urdf_file, fixed_base=True)
+                    bodyID = pb_robot.utils.load_model(urdf_file, fixed_base=False)
 
         #self.__robot = pb_robot.body.Body(bodyID)
         #self.left_finger = self.__robot.joint_from_name(left_finger_name)

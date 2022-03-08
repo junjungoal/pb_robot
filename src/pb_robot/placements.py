@@ -29,7 +29,7 @@ def sample_placement_on_aabb(top_body, bottom_aabb, top_pose=pb_robot.geometry.u
     # TODO: maybe I should instead just require that already in correct frame
     start_pose = top_body.get_base_link_pose()
     for _ in range(max_attempts):
-        theta = 0  # np.random.uniform(*CIRCULAR_LIMITS)
+        theta = np.random.uniform(*CIRCULAR_LIMITS)
         rotation = pb_robot.geometry.Euler(yaw=theta)
         top_body.set_base_link_pose(pb_robot.geometry.multiply(pb_robot.geometry.Pose(euler=rotation), top_pose))
         center, extent = pb_robot.aabb.get_center_extent(top_body)

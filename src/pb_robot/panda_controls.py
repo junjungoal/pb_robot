@@ -1,3 +1,4 @@
+from datetime import timedelta
 import time
 import numpy
 import pybullet as p
@@ -231,3 +232,92 @@ class PandaControls(object):
         for i in range(len(path)):
             self.cartImpedance(path[i], stiffness_params)
 
+
+class FloatingHandControl(object):
+    """
+    This class is meant to control a floating hand that
+    can move through the environment.
+    """
+    def __init__(self, hand, init_pos, init_orn):
+        self.hand = hand
+        hand.Open()
+
+        p.resetBasePositionAndOrientation(hand.id, init_pos, init_orn)
+        self.cid = p.createConstraint(parentBodyUniqueId=hand.id,
+                                      parentLinkIndex=-1,
+                                      childBodyUniqueId=-1,
+                                      childLinkIndex=-1,
+                                      jointType=p.JOINT_FIXED,
+                                      jointAxis=[0, 0, 0],
+                                      parentFramePosition=[0, 0, 0],
+                                      parentFrameOrientation=[0, 0, 0, 1],
+                                      childFramePosition=init_pos,
+                                      childFrameOrientation=init_orn)
+
+        self.force_dir = 1  # -1 is close, 1 is open
+
+        p.setJointMotorControl2(hand.id, 0, p.VELOCITY_CONTROL, force=0)
+        p.setJointMotorControl2(hand.id, 1, p.VELOCITY_CONTROL, force=0)
+
+        c = p.createConstraint(hand.id,
+                       1,
+                       hand.id,
+                       0,
+                       jointType=p.JOINT_GEAR,
+                       jointAxis=[1, 0, 0],
+                       parentFramePosition=[0, 0, 0],
+                       childFramePosition=[0, 0, 0])
+        p.changeConstraint(c, gearRatio=-1, erp=0.1, maxForce=10000)
+        # p.changeDynamics(hand.id, 0, linearDamping=0, angularDamping=0)
+        # p.changeDynamics(hand.id, 1, linearDamping=0, angularDamping=0)
+
+    def open(self, wait=False):
+        self.force_dir = 1
+        self._actuate_fingers(max_force=2, wait=wait)
+
+    def close(self, force, wait=False):
+        self.force_dir = -1
+        self._actuate_fingers(max_force=force, wait=wait)
+
+    def _actuate_fingers(self, max_force, wait=False):
+        exit_count = 0
+        while True:
+            p.setJointMotorControlArray(bodyUniqueId=self.hand.id,
+                                        jointIndices=[0, 1],
+                                        controlMode=p.VELOCITY_CONTROL,
+                                        targetVelocities=[self.force_dir*0.01, self.force_dir*0.01],
+                                        forces=[max_force, max_force])
+
+            force0, force1 = p.getJointState(self.hand.id, 0)[3], p.getJointState(self.hand.id, 1)[3]
+            p.stepSimulation()
+            if wait: 
+                time.sleep(0.01)
+            # print('Force:', force0, force1)
+            if numpy.abs(force0) + 0.01 >= max_force:
+                exit_count += 1
+            
+            if exit_count >= 20:
+                break
+
+    def move_to(self, hand_pos, hand_orn, force, wait=False):
+        # Use force control to maintain gripper strength.
+        p.setJointMotorControl2(self.hand.id, 0, p.VELOCITY_CONTROL, force=0)
+        p.setJointMotorControl2(self.hand.id, 1, p.VELOCITY_CONTROL, force=0)
+        while True:
+            p.setJointMotorControlArray(bodyUniqueId=self.hand.id,
+                                        jointIndices=[0, 1],
+                                        controlMode=p.TORQUE_CONTROL,
+                                        forces=[self.force_dir*force, self.force_dir*force])
+            p.changeConstraint(self.cid, hand_pos, jointChildFrameOrientation=hand_orn, maxForce=100)
+            p.stepSimulation()
+            force = p.getJointState(self.hand.id, 1)[3]
+            # print('Grip Force:', force)
+            if wait:
+                time.sleep(0.01)
+
+            if numpy.linalg.norm(numpy.subtract(self.hand.get_base_link_point(), hand_pos)) < 0.005:
+                break
+
+    def set_pose(self, hand_pos, hand_orn):
+        p.resetBasePositionAndOrientation(self.hand.id, hand_pos, hand_orn)
+        p.changeConstraint(self.cid, hand_pos, jointChildFrameOrientation=hand_orn, maxForce=50)
