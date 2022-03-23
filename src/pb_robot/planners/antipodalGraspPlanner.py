@@ -10,6 +10,7 @@ import shutil
 import copy
 
 from pybullet_object_models import ycb_objects
+from pb_robot import body
 from pb_robot.geometry import multiply, Point, Pose
 
 
@@ -41,10 +42,10 @@ class GraspSimulationClient:
         self.mesh, self.mesh_tform, self.mesh_fname = self._load_mesh()
         # TODO: In the future this information should be read from the URDF.
         #p.changeDynamics(self.body_id, -1, mass=graspable_body.mass, lateralFriction=graspable_body.friction, spinningFriction=0.005, physicsClientId=self.pb_client_id)
-        # import IPython
-        # IPython.embed()
 
-        self.visualShapeId = p.createVisualShape(shapeType=p.GEOM_SPHERE, rgbaColor=[1, 1, 1, 1], radius=0.005, physicsClientId=self.pb_client_id)
+        self.rightVisualShapeId = p.createVisualShape(shapeType=p.GEOM_SPHERE, rgbaColor=[1, 0, 0, 1], radius=0.005, physicsClientId=self.pb_client_id)
+        self.leftVisualShapeId = p.createVisualShape(shapeType=p.GEOM_SPHERE, rgbaColor=[0, 1, 0, 1], radius=0.005, physicsClientId=self.pb_client_id)
+
         self.RED = [255, 0, 0, 255]
         self.show_pybullet = show_pybullet
 
@@ -134,19 +135,19 @@ class GraspSimulationClient:
         return t_mesh, mesh_tform, mesh_fname
 
     def pb_draw_contacts(self, pb_point1, pb_point2):
-        p.createMultiBody(baseMass=0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=self.visualShapeId,
+        p.createMultiBody(baseMass=0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=self.rightVisualShapeId,
                             basePosition=pb_point1, useMaximalCoordinates=True, physicsClientId=self.pb_client_id)
-        p.createMultiBody(baseMass=0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=self.visualShapeId,
+        p.createMultiBody(baseMass=0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=self.leftVisualShapeId,
             basePosition=pb_point2, useMaximalCoordinates=True, physicsClientId=self.pb_client_id)
 
     def pb_check_grasp_collision(self, grasp_pose):
         self.hand.set_base_link_pose(grasp_pose)
         # self.hand.set_base_link_pose(pb_robot.geometry.invert(grasp_pose))
-
-        collision = len(p.getClosestPoints(bodyA=self.hand.id, 
-                            bodyB=self.body_id, 
+        result = p.getClosestPoints(bodyA=self.hand.id, 
+                            bodyB=self.body_id,
                             distance=0,
-                            physicsClientId=self.pb_client_id)) != 0
+                            physicsClientId=self.pb_client_id)
+        collision = len(result) != 0
         return collision
 
     def pb_get_pose(self):
@@ -212,7 +213,7 @@ class GraspSimulationClient:
 
         if len(fname) > 0:
             for angles, name in zip([(0, 0, 0), (np.pi/2, 0, 0), (np.pi/2, 0, np.pi/2)], ['z', 'y', 'x']):
-                scene.set_camera(angles=angles, distance=0.5, center=self.mesh.centroid)
+                scene.set_camera(angles=angles, distance=0.6, center=self.mesh.centroid)
                 with open(fname.replace('.png', '_%s.png' % name), 'wb') as handle:
                     handle.write(scene.save_image())
         else:
@@ -260,10 +261,11 @@ class GraspStabilityChecker:
             for _ in range(100):
                 sim_client.hand_control.move_to([x, y, z + 0.001*500], grasp.ee_relpose[1], grasp.force, wait=show_pybullet)
         else:
-            sim_client.pb_set_gravity((0, 0, -10))
-            for _ in range(100):
-                sim_client.hand_control.move_to(grasp.ee_relpose[0], grasp.ee_relpose[1], grasp.force, wait=show_pybullet)
-            # TODO: Apply gravitational force in multiple directions.
+            gravity_vectors = self._get_gravity_vectors(20)
+            for gx in range(gravity_vectors.shape[0]):
+                sim_client.pb_set_gravity(gravity_vectors[gx, :])
+                for _ in range(100):
+                    sim_client.hand_control.move_to(grasp.ee_relpose[0], grasp.ee_relpose[1], grasp.force, wait=show_pybullet)
         end_pose = sim_client.pb_get_pose()
 
         pos_diff = np.linalg.norm(np.array(end_pose[0])-np.array(init_pose[0]))
@@ -276,7 +278,32 @@ class GraspStabilityChecker:
         print('Stable:', stable)
         sim_client.disconnect()
         return stable
-        
+
+    def _get_gravity_vectors(self, n_samples):
+        points = []
+        for _ in range(1000):
+            gravity = np.random.randn(3)
+            gravity = 10*gravity/np.linalg.norm(gravity)
+
+            points.append(gravity)
+
+        points = np.array(points)
+        points = self._k_farthest_points(points, n_samples)
+        return points
+
+    def _k_farthest_points(self, points, k):
+        ixs = [0]
+        min_distances = np.linalg.norm(points - points[0:1, :], axis=1)
+        for _ in range(k-1):
+            # Iteratively choose the point that is farthest.
+            new_ix = np.argmax(min_distances)
+            ixs.append(new_ix)
+
+            dist_to_new = np.linalg.norm(points - points[new_ix:new_ix+1, :], axis=1)
+            min_distances = np.stack([min_distances, dist_to_new],-1)
+            min_distances = np.min(min_distances, axis=1)
+
+        return points[ixs,...]          
 
 class GraspSampler:
     """ Given a specific object, sample antipodal grasp candidates where the Panda gripper does not 
@@ -331,12 +358,12 @@ class GraspSampler:
             pb_point1 = apply_transform(self.sim_client.mesh_tform, tm_point1)
             pb_point2 = apply_transform(self.sim_client.mesh_tform, tm_point2)
 
-            for _ in range(10):
+            for _ in range(20):
                 # Pitch is the angle of the grasp while roll controls the orientation (flipped gripper or not).
                 pitch = random.uniform(-np.pi, np.pi)
                 #pitch = random.choice([-np.pi, np.pi])
-                roll = random.choice([0, np.pi])  # Not used. Should be covered by point-ordering.
-
+                # roll = random.choice([0, np.pi])  # Not used. Should be covered by point-ordering.
+                roll = 0
                 grasp_point = (pb_point1 + pb_point2)/2
                 
                 # The contact points define a plane (contact plane).
@@ -363,7 +390,7 @@ class GraspSampler:
                     quat2,
                     pb_robot.geometry.quat_from_euler(pb_robot.geometry.Euler(roll=np.pi / 2)),
                     pb_robot.geometry.quat_from_euler(pb_robot.geometry.Euler(pitch=pitch)), # TODO: local pitch or world pitch?
-                    pb_robot.geometry.quat_from_euler(pb_robot.geometry.Euler(roll=roll)),  # Switches fingers
+                    # pb_robot.geometry.quat_from_euler(pb_robot.geometry.Euler(roll=roll)),  # Switches fingers
                 )
 
                 # pose2 = pb_robot.geometry.Pose(grasp_point, euler=pb_robot.geometry.euler_from_quat(grasp_quat))
@@ -373,7 +400,9 @@ class GraspSampler:
                 grasp_pose = pb_robot.geometry.multiply(grasp_pose, pb_robot.geometry.Pose(pb_robot.geometry.Point(z=-finger_length))) # FINGER_LENGTH
 
                 collision = self.sim_client.pb_check_grasp_collision(grasp_pose)
-                
+                # import time
+                # if collision: 
+                #     input('Collision, continue?')
                 if not collision:
                     grasp = Grasp(graspable_body=self.graspable_body,
                                   pb_point1=pb_point1, 
@@ -394,24 +423,75 @@ class GraspSampler:
     def disconnect(self):
         self.sim_client.disconnect()
 
-    
+
+class GraspableBodySampler:
+    MASS_RANGE = (0.1, 2)
+    FRICTION_RANGE = (0.1, 1.0)
+    # COM is sampled in % of containing bounding box and rejection sampling is used to
+    # make sure it lies within the mesh.
+
+    @staticmethod
+    def sample_random_object_properties(ycb_name, mass=None, friction=None, com=None):
+        """
+        Returns GraspableBody. Only sample parameteres if they are not specified already.
+        """
+        if mass is None:
+            mass = np.random.uniform(*GraspableBodySampler.MASS_RANGE)
+        if friction is None:
+            friction = np.random.uniform(*GraspableBodySampler.FRICTION_RANGE)
+        if com is None:
+            com = GraspableBodySampler._sample_com(ycb_name)
+        return GraspableBody(ycb_name, tuple(com), mass, friction)
+
+    @staticmethod
+    def _sample_com(ycb_name):
+        """
+        Load a simulation client.
+        """
+        # TODO: Need to convert CoM to object
+        tmp_body = GraspableBody(ycb_name, (0, 0, 0), 0, 1.0)
+        sim_client = GraspSimulationClient(tmp_body, show_pybullet=False, urdf_directory='urdf_models')
+
+        aabb_min, aabb_max = sim_client.mesh.bounding_box.bounds
+
+        while True:
+            x = np.random.uniform(aabb_min[0], aabb_max[0])
+            y = np.random.uniform(aabb_min[1], aabb_max[1])
+            z = np.random.uniform(aabb_min[2], aabb_max[2])
+            com = (x, y, z)
+            if sim_client.mesh.contains(np.array([com])):
+                break
+
+        com = apply_transform(sim_client.mesh_tform, com).tolist()
+        # import IPython
+        # IPython.embed()
+        pb_robot.viz.draw_aabb((aabb_min, aabb_max))
+        pb_robot.viz.draw_point(com)
+        
+        sim_client.disconnect()
+
+        return com
+
+
 if __name__ == '__main__':
     ycb_objects_names = [name for name in os.listdir(ycb_objects.getDataPath()) if 'Ycb' in name] 
-    ycb_objects_names = ['YcbPowerDrill']
+    ycb_objects_names = ['YcbCrackerBox']
     labeler = GraspStabilityChecker(stability_direction='all', label_type='relpose')
 
     ycb_object_name = random.choice(ycb_objects_names)
-    graspable_body = GraspableBody(ycb_name=ycb_object_name, com=(0.05, 0.05, 0), mass=1., friction=0.5)
-
+    # graspable_body = GraspableBody(ycb_name=ycb_object_name, com=(0, 0, 0.15), mass=0.5, friction=0.5)
+    graspable_body = GraspableBodySampler.sample_random_object_properties(ycb_object_name)
     grasp_sampler = GraspSampler(graspable_body=graspable_body, antipodal_tolerance=30, show_pybullet=False)
-    n_samples = 10
+    n_samples = 50
     grasps = []
     for lx in range(0, n_samples):
         print('Sampling %d/%d...' % (lx, n_samples))
         grasp = grasp_sampler.sample_grasp(force=20, show_trimesh=False)
         grasps.append(grasp)
     grasp_sampler.disconnect()
-    # show_grasps(grasps)
+    sim_client = GraspSimulationClient(graspable_body, show_pybullet=False, urdf_directory='object_models')
+    sim_client.tm_show_grasps(grasps)#, fname='test.png')
+    sim_client.disconnect()
     
     labels = []
     for lx, grasp in enumerate(grasps):
@@ -420,6 +500,7 @@ if __name__ == '__main__':
 
     sim_client = GraspSimulationClient(graspable_body, show_pybullet=False, urdf_directory='object_models')
     sim_client.tm_show_grasps(grasps, labels)#, fname='test.png')
+    sim_client.disconnect()
 
     import IPython
     IPython.embed()
