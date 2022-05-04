@@ -20,7 +20,7 @@ def apply_transform(tform, point):
 
 # TODO: Support ShapeNet objects.
 # Note: CoM, mass, and friction properties of the urdf will be overwritten before loading into PyBullet.
-GraspableBody = namedtuple('GraspableBody', ['ycb_name', 'com', 'mass', 'friction'])
+GraspableBody = namedtuple('GraspableBody', ['object_name', 'com', 'mass', 'friction'])
 Grasp = namedtuple('Grasp', ['graspable_body', 'pb_point1', 'pb_point2', 'pitch', 'roll', 'ee_relpose', 'force'])
 
 
@@ -29,9 +29,10 @@ class GraspSimulationClient:
     def __init__(self, graspable_body, show_pybullet, urdf_directory):
         """ Support both PyBullet and Trimesh for simulations and visualizations.
         """
+        self.shapenet_root = '/home/mnosew/workspace/object_models/shapenet-sem/urdfs'
+
         self.pb_client_id = pb_robot.utils.connect(use_gui=True if show_pybullet else False)
         p.setGravity(0, 0, 0, physicsClientId=self.pb_client_id)
-
         self.graspable_body = graspable_body
         self.urdf_directory = urdf_directory
         if not os.path.exists(urdf_directory):
@@ -50,6 +51,7 @@ class GraspSimulationClient:
         self.show_pybullet = show_pybullet
 
         self.hand, self.hand_control = self._load_hand()
+        
     
     def _get_object_urdf(self, graspable_body):
         """ First copy the YCB Object to a new folder then modify its URDF to include 
@@ -57,15 +59,25 @@ class GraspSimulationClient:
 
         TODO: Right now we only support loading ycb_objects.
         """
-        # Copy all files for the object to a temporary location.
-        src_path = os.path.join(ycb_objects.getDataPath(), graspable_body.ycb_name)
-        dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz' % (graspable_body.ycb_name, graspable_body.mass, graspable_body.friction, graspable_body.com[0], graspable_body.com[1], graspable_body.com[2])
-        dst_path = os.path.join(self.urdf_directory, dst_object_name)
-        if not os.path.exists(dst_path):    
-            shutil.copytree(src=src_path, dst=dst_path)
+        object_dataset, object_name = graspable_body.object_name.split('::')
+        if object_dataset.lower() == 'ycb':
+            # Copy all files for the object to a temporary location.
+            src_path = os.path.join(ycb_objects.getDataPath(), object_name)
+            dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz' % (graspable_body.object_name, graspable_body.mass, graspable_body.friction, graspable_body.com[0], graspable_body.com[1], graspable_body.com[2])
+        
+            dst_path = os.path.join(self.urdf_directory, dst_object_name)
+            if not os.path.exists(dst_path):    
+                shutil.copytree(src=src_path, dst=dst_path)
 
-        # Update the URDF parameters.
-        urdf_path = os.path.join(dst_path, 'model.urdf')
+            # Update the URDF parameters.
+            urdf_path = os.path.join(dst_path, 'model.urdf')
+        elif object_dataset.lower() == 'shapenet':
+            src_path = os.path.join(self.shapenet_root, f'{object_name}.urdf')
+            dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz.urdf' % (graspable_body.object_name, graspable_body.mass, graspable_body.friction, graspable_body.com[0], graspable_body.com[1], graspable_body.com[2])
+            dst_path = os.path.join(self.urdf_directory, dst_object_name)
+            shutil.copy(src_path, dst_path)
+            urdf_path = dst_path
+   
         with open(urdf_path, 'r') as handle:
             urdf = urdf_to_odio(handle.read())
 
@@ -123,10 +135,15 @@ class GraspSimulationClient:
 
     def _load_mesh(self):
         visual_data = p.getVisualShapeData(self.body_id, physicsClientId=self.pb_client_id)[0]
+
+        scale = visual_data[3][0]
         mesh_fname = visual_data[4]
         pb_mesh = pb_robot.meshes.read_obj(mesh_fname, decompose=False)
         t_mesh = trimesh.Trimesh(pb_mesh.vertices, pb_mesh.faces, face_colors=[[150, 150, 150, 150]]*len(pb_mesh.faces))
         t_mesh.fix_normals()
+        t_mesh = t_mesh.apply_scale(scale)
+        # import IPython
+        # IPython.embed()
 
         mesh_pos = visual_data[5]
         mesh_orn = visual_data[6]
@@ -148,6 +165,12 @@ class GraspSimulationClient:
                             distance=0,
                             physicsClientId=self.pb_client_id)
         collision = len(result) != 0
+        # print(result)
+        # if len(result) != 0:
+        #     pb_robot.viz.draw_point(result[0][5])
+        #     pb_robot.viz.draw_point(result[0][6])
+
+        # pb_robot.viz.remove_all_debug()
         return collision
 
     def pb_get_pose(self):
@@ -324,41 +347,112 @@ class GraspSampler:
         self.show_pybullet = show_pybullet
         self.graspable_body = graspable_body
 
+    def _sample_antipodal_points_rays(self, max_attempts=500):
+        """ Return two antipodal points in the visual frame (which may not be the object frame).
+        """
+        points = []
+        for _ in range(max_attempts):
+
+            [point1], [index1] = self.sim_client.mesh.sample(1, return_index=True)
+            normal1 = np.array(self.sim_client.mesh.face_normals[index1, :]) 
+
+            intersections = self.sim_client.mesh.ray.intersects_location([point1], [-normal1])
+            hit_points, _, hit_faces = intersections
+
+            if hit_points.shape[0]  <= 1:
+                # Only found the origin as intersection point.
+                continue
+
+            point_intersect, index_intersect = hit_points[1], hit_faces[1]
+            face_weight = np.zeros((len(self.sim_client.mesh.faces)))
+            face_weight[index_intersect] = 1.
+
+            for _ in range(10):
+                [point2], [index2] = self.sim_client.mesh.sample(1, return_index=True, face_weight=face_weight)
+
+                # print(point1, point2, index1, index2)
+                normal2 = np.array(self.sim_client.mesh.face_normals[index2, :])
+                # print('Normals:', normal1, normal2)
+                distance = pb_robot.geometry.get_distance(point1, point2)
+                if distance > self.gripper_width or distance < 1e-3:
+                    continue
+                
+                direction = point2 - point1
+                # print('Direction:', direction)
+                # num = np.dot(normal1, -direction)
+                # den = pb_robot.geometry.get_length(normal1)*pb_robot.geometry.get_length(-direction)
+                # arg = num/den
+                # print('ACOS:', num, den, arg)
+                # res = np.math.acos(arg)
+
+                error1 = pb_robot.geometry.angle_between(normal1, -direction)
+                error2 = pb_robot.geometry.angle_between(normal2, direction)
+
+                # For anitpodal grasps, the angle between the normal and direction vector should be small.
+                if (error1 > self.antipodal_tolerance) or (error2 > self.antipodal_tolerance):
+                    continue
+
+                return point1, point2
+        return None, None
+
     def _sample_antipodal_points(self):
         """ Return two antipodal points in the visual frame (which may not be the object frame).
         """
+        points = []
+        count = 0
         while True:
-            [point1, point2], [index1, index2] = self.sim_client.mesh.sample(2, return_index=True)
-            distance = pb_robot.geometry.get_distance(point1, point2)
-            if distance > self.gripper_width or distance < 1e-3:
-                continue
 
-            direction = point2 - point1
-            normal1 = np.array(self.sim_client.mesh.face_normals[index1, :]) 
-            normal2 = np.array(self.sim_client.mesh.face_normals[index2, :])
-            # Make sure normals are pointing away from each other.
-            # if normal1.dot(-direction) < 0:
-            #     normal1 *= -1
-            # if normal2.dot(direction) < 0:
-            #     normal2 *= -1
-            error1 = pb_robot.geometry.angle_between(normal1, -direction)
-            error2 = pb_robot.geometry.angle_between(normal2, direction)
+            [point1], [index1] = self.sim_client.mesh.sample(1, return_index=True)
+            for ax in range(200):
+                [point2], [index2] = self.sim_client.mesh.sample(1, return_index=True)
 
-            # For anitpodal grasps, the angle between the normal and direction vector should be small.
-            if (error1 > self.antipodal_tolerance) or (error2 > self.antipodal_tolerance):
-                continue
+                distance = pb_robot.geometry.get_distance(point1, point2)
+                if distance > self.gripper_width or distance < 1e-3:
+                    continue
+
+                direction = point2 - point1
+                normal1 = np.array(self.sim_client.mesh.face_normals[index1, :]) 
+                normal2 = np.array(self.sim_client.mesh.face_normals[index2, :])
+                # Make sure normals are pointing away from each other.
+                # if normal1.dot(-direction) < 0:
+                #     normal1 *= -1
+                # if normal2.dot(direction) < 0:
+                #     normal2 *= -1
+                if ax == 0:
+                    import IPython
+                    IPython.embed()
+                error1 = pb_robot.geometry.angle_between(normal1, -direction)
+                error2 = pb_robot.geometry.angle_between(normal2, direction)
+
+                # For anitpodal grasps, the angle between the normal and direction vector should be small.
+                if (error1 > self.antipodal_tolerance) or (error2 > self.antipodal_tolerance):
+                    continue
+
+                return point1, point2
+
+            # points.extend([point1, point2])
+            # count += 1
+            # print(count, self.sim_client.mesh.is_watertight)
+            # if count >= 1000:
+            #     break
+
+        
             
-            return point1, point2
+        pc = trimesh.points.PointCloud(points)
+        scene = trimesh.scene.Scene([pc, self.sim_client.mesh])
+        scene.show()
 
     def sample_grasp(self, force, show_trimesh=False, max_attempts=100):
 
         for _ in range(max_attempts):
-            tm_point1, tm_point2 = self._sample_antipodal_points()
+            tm_point1, tm_point2 = self._sample_antipodal_points_rays()
+            if tm_point1 is None:
+                return None
             # The visual frame of reference might be different from the object's link frame.
             pb_point1 = apply_transform(self.sim_client.mesh_tform, tm_point1)
             pb_point2 = apply_transform(self.sim_client.mesh_tform, tm_point2)
-
-            for _ in range(20):
+            #self.sim_client.pb_draw_contacts(pb_point1, pb_point2)
+            for _ in range(10):
                 # Pitch is the angle of the grasp while roll controls the orientation (flipped gripper or not).
                 pitch = random.uniform(-np.pi, np.pi)
                 #pitch = random.choice([-np.pi, np.pi])
@@ -403,6 +497,8 @@ class GraspSampler:
                 # import time
                 # if collision: 
                 #     input('Collision, continue?')
+                #     pb_robot.viz.remove_all_debug()
+ 
                 if not collision:
                     grasp = Grasp(graspable_body=self.graspable_body,
                                   pb_point1=pb_point1, 
@@ -431,7 +527,7 @@ class GraspableBodySampler:
     # make sure it lies within the mesh.
 
     @staticmethod
-    def sample_random_object_properties(ycb_name, mass=None, friction=None, com=None):
+    def sample_random_object_properties(object_name, mass=None, friction=None, com=None):
         """
         Returns GraspableBody. Only sample parameteres if they are not specified already.
         """
@@ -440,18 +536,21 @@ class GraspableBodySampler:
         if friction is None:
             friction = np.random.uniform(*GraspableBodySampler.FRICTION_RANGE)
         if com is None:
-            com = GraspableBodySampler._sample_com(ycb_name)
-        return GraspableBody(ycb_name, tuple(com), mass, friction)
+            com = GraspableBodySampler._sample_com(object_name)
+        return GraspableBody(object_name, tuple(com), mass, friction)
 
     @staticmethod
-    def _sample_com(ycb_name):
+    def _sample_com(object_name):
         """
         Load a simulation client.
         """
         # TODO: Need to convert CoM to object
-        tmp_body = GraspableBody(ycb_name, (0, 0, 0), 0, 1.0)
+        tmp_body = GraspableBody(object_name, (0, 0, 0), 0, 1.0)
         sim_client = GraspSimulationClient(tmp_body, show_pybullet=False, urdf_directory='urdf_models')
-
+        print(f'Object watertight:', sim_client.mesh.is_watertight)
+        # if not sim_client.mesh.is_watertight:
+        #     import IPython
+        #     IPython.embed()
         aabb_min, aabb_max = sim_client.mesh.bounding_box.bounds
 
         while True:
@@ -463,26 +562,31 @@ class GraspableBodySampler:
                 break
 
         com = apply_transform(sim_client.mesh_tform, com).tolist()
-        # import IPython
-        # IPython.embed()
+        
         pb_robot.viz.draw_aabb((aabb_min, aabb_max))
         pb_robot.viz.draw_point(com)
-        
+
         sim_client.disconnect()
 
         return com
 
 
 if __name__ == '__main__':
-    ycb_objects_names = [name for name in os.listdir(ycb_objects.getDataPath()) if 'Ycb' in name] 
-    ycb_objects_names = ['YcbCrackerBox']
+    objects_names = [name for name in os.listdir(ycb_objects.getDataPath()) if 'Ycb' in name] 
+    # objects_names = ['YCB::YcbCrackerBox']
+    #objects_names = ['ShapeNet::Desk_fe2a9f23035580ce239883c5795189ed']
+    objects_names = ['ShapeNet::ComputerMouse_379e93edfd0cb9e4cc034c03c3eb69d']
+    #objects_names = ['ShapeNet::MilkCarton_64018b545e9088303dd0d6160c4dfd18']
+    #objects_names = ['ShapeNet::WineGlass_2d89d2b3b6749a9d99fbba385cc0d41d']
     labeler = GraspStabilityChecker(stability_direction='all', label_type='relpose')
 
-    ycb_object_name = random.choice(ycb_objects_names)
-    # graspable_body = GraspableBody(ycb_name=ycb_object_name, com=(0, 0, 0.15), mass=0.5, friction=0.5)
-    graspable_body = GraspableBodySampler.sample_random_object_properties(ycb_object_name)
-    grasp_sampler = GraspSampler(graspable_body=graspable_body, antipodal_tolerance=30, show_pybullet=False)
-    n_samples = 50
+    object_name = random.choice(objects_names)
+    graspable_body = GraspableBody(object_name=object_name, com=(0, 0, 0), mass=0.1, friction=1.0)
+    #graspable_body = GraspableBodySampler.sample_random_object_properties(object_name)
+    
+    grasp_sampler = GraspSampler(graspable_body=graspable_body, antipodal_tolerance=30, show_pybullet=True)
+    grasp_sampler.sim_client.mesh.show()
+    n_samples = 100
     grasps = []
     for lx in range(0, n_samples):
         print('Sampling %d/%d...' % (lx, n_samples))
