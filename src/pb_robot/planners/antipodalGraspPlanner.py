@@ -219,6 +219,17 @@ class GraspSimulationClient:
             right_arrow = trimesh.load_path([grasp_right, tm_point1], colors=[color])
         return [grasp_arrow, left_arrow, right_arrow]
 
+    def _get_trimesh_grasp_array_viz(self, grasp, color):
+        pb_point1, pb_point2, ee_pose = grasp[0], grasp[1], grasp[2]
+        object2mesh = np.linalg.inv(self.mesh_tform)
+        tm_point1 = apply_transform(object2mesh, pb_point1)
+        tm_point2 = apply_transform(object2mesh, pb_point2)
+        tm_eepoint = apply_transform(object2mesh, ee_pose)
+
+        left_arrow = trimesh.load_path([tm_eepoint, tm_point1], colors=[color])
+        right_arrow = trimesh.load_path([tm_eepoint, tm_point2], colors=[color])
+        return [left_arrow, right_arrow]
+
     def disconnect(self):
         p.disconnect(self.pb_client_id)
 
@@ -230,7 +241,10 @@ class GraspSimulationClient:
             else:
                 color = [0, 0, 255, 255]
 
-            grasp_arrows += self._get_trimesh_grasp_viz(g, color)  
+            if isinstance(g, Grasp):
+                grasp_arrows += self._get_trimesh_grasp_viz(g, color)  
+            else:
+                grasp_arrows += self._get_trimesh_grasp_array_viz(g, color) 
         axis = self._get_tm_com_axis()
         scene = trimesh.scene.Scene([self.mesh, axis] + grasp_arrows)
 
@@ -521,7 +535,7 @@ class GraspSampler:
 
 
 class GraspableBodySampler:
-    MASS_RANGE = (0.1, 2)
+    MASS_RANGE = (0.1, 1.0)
     FRICTION_RANGE = (0.1, 1.0)
     # COM is sampled in % of containing bounding box and rejection sampling is used to
     # make sure it lies within the mesh.
