@@ -274,13 +274,26 @@ class GraspStabilityChecker:
     :label_type='contact': True if the object remains in the object's gripper.
     'label_type='relpose': True if the object's relative pose with the gripper does not change during the motion.
     """
-    def __init__(self, stability_direction='all', label_type='relpose'):
+    def __init__(self, stability_direction='all', label_type='relpose', grasp_noise=0.0):
         assert(stability_direction in ['all', 'gravity'])
         assert(label_type in ['relpose', 'contact'])
         self.stability_direction = stability_direction
         self.label_type = label_type
-    
+        self.grasp_noise = grasp_noise
+
+    def get_noisy_grasp(self, grasp):
+        pos, orn = grasp.ee_relpose
+        new_pos = np.array(pos) + np.random.randn(3)*self.grasp_noise
+        new_grasp = Grasp(graspable_body=grasp.graspable_body,
+            pb_point1=grasp.pb_point1, pb_point2=grasp.pb_point2,
+            pitch=grasp.pitch, roll=grasp.roll,
+            ee_relpose=(new_pos, orn), force=grasp.force)
+            
+        return new_grasp
+
+
     def get_label(self, grasp, show_pybullet=False):
+        grasp = self.get_noisy_grasp(grasp)
 
         sim_client = GraspSimulationClient(grasp.graspable_body, show_pybullet=show_pybullet, urdf_directory='urdf_models')
 
@@ -361,12 +374,12 @@ class GraspSampler:
         self.show_pybullet = show_pybullet
         self.graspable_body = graspable_body
 
-    def _sample_antipodal_points_rays(self, max_attempts=500):
+    def _sample_antipodal_points_rays(self, max_attempts=5000):
         """ Return two antipodal points in the visual frame (which may not be the object frame).
         """
         points = []
-        for _ in range(max_attempts):
-
+        # for _ in range(max_attempts):
+        while True:
             [point1], [index1] = self.sim_client.mesh.sample(1, return_index=True)
             normal1 = np.array(self.sim_client.mesh.face_normals[index1, :]) 
 
@@ -389,8 +402,8 @@ class GraspSampler:
                 # print('Normals:', normal1, normal2)
                 distance = pb_robot.geometry.get_distance(point1, point2)
                 if distance > self.gripper_width or distance < 1e-3:
-                    continue
-                
+                    continue    
+
                 direction = point2 - point1
                 # print('Direction:', direction)
                 # num = np.dot(normal1, -direction)
@@ -458,7 +471,8 @@ class GraspSampler:
 
     def sample_grasp(self, force, show_trimesh=False, max_attempts=100):
 
-        for _ in range(max_attempts):
+        #for _ in range(max_attempts):
+        while True:
             tm_point1, tm_point2 = self._sample_antipodal_points_rays()
             if tm_point1 is None:
                 return None
@@ -592,15 +606,22 @@ if __name__ == '__main__':
     objects_names = ['ShapeNet::ComputerMouse_379e93edfd0cb9e4cc034c03c3eb69d']
     #objects_names = ['ShapeNet::MilkCarton_64018b545e9088303dd0d6160c4dfd18']
     #objects_names = ['ShapeNet::WineGlass_2d89d2b3b6749a9d99fbba385cc0d41d']
-    labeler = GraspStabilityChecker(stability_direction='all', label_type='relpose')
+    objects_names = ['ShapeNet::WallLamp_8be32f90153eb7281b30b67ce787d4d3']    
+    
+    labeler = GraspStabilityChecker(stability_direction='all', label_type='relpose', grasp_noise=0.0025)
 
     object_name = random.choice(objects_names)
-    graspable_body = GraspableBody(object_name=object_name, com=(0, 0, 0), mass=0.1, friction=1.0)
+    graspable_body = GraspableBody(object_name=object_name, 
+        com=(0.00400301, 0.01275706, 0.02090709), 
+        mass=0.52519492, 
+        friction=0.57660351)
+
+    #graspable_body = GraspableBody(object_name=object_name, com=(0, 0, 0), mass=0.1, friction=1.0)
     #graspable_body = GraspableBodySampler.sample_random_object_properties(object_name)
     
     grasp_sampler = GraspSampler(graspable_body=graspable_body, antipodal_tolerance=30, show_pybullet=True)
     grasp_sampler.sim_client.mesh.show()
-    n_samples = 100
+    n_samples = 50
     grasps = []
     for lx in range(0, n_samples):
         print('Sampling %d/%d...' % (lx, n_samples))
@@ -620,5 +641,3 @@ if __name__ == '__main__':
     sim_client.tm_show_grasps(grasps, labels)#, fname='test.png')
     sim_client.disconnect()
 
-    import IPython
-    IPython.embed()
