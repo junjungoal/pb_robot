@@ -238,11 +238,13 @@ class FloatingHandControl(object):
     This class is meant to control a floating hand that
     can move through the environment.
     """
-    def __init__(self, hand, init_pos, init_orn):
+    def __init__(self, hand, init_pos, init_orn, client_id):
+        self.client_id = client_id
+        
         self.hand = hand
         hand.Open()
 
-        p.resetBasePositionAndOrientation(hand.id, init_pos, init_orn)
+        p.resetBasePositionAndOrientation(hand.id, init_pos, init_orn, physicsClientId=self.client_id)
         self.cid = p.createConstraint(parentBodyUniqueId=hand.id,
                                       parentLinkIndex=-1,
                                       childBodyUniqueId=-1,
@@ -252,12 +254,13 @@ class FloatingHandControl(object):
                                       parentFramePosition=[0, 0, 0],
                                       parentFrameOrientation=[0, 0, 0, 1],
                                       childFramePosition=init_pos,
-                                      childFrameOrientation=init_orn)
+                                      childFrameOrientation=init_orn,
+                                      physicsClientId=self.client_id)
 
         self.force_dir = 1  # -1 is close, 1 is open
 
-        p.setJointMotorControl2(hand.id, 0, p.VELOCITY_CONTROL, force=0)
-        p.setJointMotorControl2(hand.id, 1, p.VELOCITY_CONTROL, force=0)
+        p.setJointMotorControl2(hand.id, 0, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
+        p.setJointMotorControl2(hand.id, 1, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
 
         c = p.createConstraint(hand.id,
                        1,
@@ -266,8 +269,9 @@ class FloatingHandControl(object):
                        jointType=p.JOINT_GEAR,
                        jointAxis=[1, 0, 0],
                        parentFramePosition=[0, 0, 0],
-                       childFramePosition=[0, 0, 0])
-        p.changeConstraint(c, gearRatio=-1, erp=0.1, maxForce=10000)
+                       childFramePosition=[0, 0, 0],
+                       physicsClientId=self.client_id)
+        p.changeConstraint(c, gearRatio=-1, erp=0.1, maxForce=10000, physicsClientId=self.client_id)
         # p.changeDynamics(hand.id, 0, linearDamping=0, angularDamping=0)
         # p.changeDynamics(hand.id, 1, linearDamping=0, angularDamping=0)
 
@@ -286,10 +290,11 @@ class FloatingHandControl(object):
                                         jointIndices=[0, 1],
                                         controlMode=p.VELOCITY_CONTROL,
                                         targetVelocities=[self.force_dir*0.01, self.force_dir*0.01],
-                                        forces=[max_force, max_force])
+                                        forces=[max_force, max_force],
+                                        physicsClientId=self.client_id)
 
-            force0, force1 = p.getJointState(self.hand.id, 0)[3], p.getJointState(self.hand.id, 1)[3]
-            p.stepSimulation()
+            force0, force1 = p.getJointState(self.hand.id, 0, physicsClientId=self.client_id)[3], p.getJointState(self.hand.id, 1, physicsClientId=self.client_id)[3]
+            p.stepSimulation(physicsClientId=self.client_id)
             if wait: 
                 time.sleep(0.01)
             # print('Force:', force0, force1)
@@ -301,16 +306,17 @@ class FloatingHandControl(object):
 
     def move_to(self, hand_pos, hand_orn, force, wait=False):
         # Use force control to maintain gripper strength.
-        p.setJointMotorControl2(self.hand.id, 0, p.VELOCITY_CONTROL, force=0)
-        p.setJointMotorControl2(self.hand.id, 1, p.VELOCITY_CONTROL, force=0)
+        p.setJointMotorControl2(self.hand.id, 0, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
+        p.setJointMotorControl2(self.hand.id, 1, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
         while True:
             p.setJointMotorControlArray(bodyUniqueId=self.hand.id,
                                         jointIndices=[0, 1],
                                         controlMode=p.TORQUE_CONTROL,
-                                        forces=[self.force_dir*force, self.force_dir*force])
-            p.changeConstraint(self.cid, hand_pos, jointChildFrameOrientation=hand_orn, maxForce=100)
-            p.stepSimulation()
-            force = p.getJointState(self.hand.id, 1)[3]
+                                        forces=[self.force_dir*force, self.force_dir*force],
+                                        physicsClientId=self.client_id)
+            p.changeConstraint(self.cid, hand_pos, jointChildFrameOrientation=hand_orn, maxForce=100, physicsClientId=self.client_id)
+            p.stepSimulation(physicsClientId=self.client_id)
+            force = p.getJointState(self.hand.id, 1, physicsClientId=self.client_id)[3]
             # print('Grip Force:', force)
             if wait:
                 time.sleep(0.01)
@@ -319,5 +325,5 @@ class FloatingHandControl(object):
                 break
 
     def set_pose(self, hand_pos, hand_orn):
-        p.resetBasePositionAndOrientation(self.hand.id, hand_pos, hand_orn)
-        p.changeConstraint(self.cid, hand_pos, jointChildFrameOrientation=hand_orn, maxForce=50)
+        p.resetBasePositionAndOrientation(self.hand.id, hand_pos, hand_orn, physicsClientId=self.client_id)
+        p.changeConstraint(self.cid, hand_pos, jointChildFrameOrientation=hand_orn, maxForce=50, physicsClientId=self.client_id)

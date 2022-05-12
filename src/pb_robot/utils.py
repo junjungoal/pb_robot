@@ -181,7 +181,7 @@ def get_model_info(body):
     key = (CLIENT, body)
     return INFO_FROM_BODY.get(key, None)
 
-def get_urdf_flags(cache=False, cylinder=False):
+def get_urdf_flags(cache=False, cylinder=False, use_mtl=False):
     # by default, Bullet disables self-collision
     # URDF_INITIALIZE_SAT_FEATURES
     # URDF_ENABLE_CACHED_GRAPHICS_SHAPES seems to help
@@ -192,6 +192,8 @@ def get_urdf_flags(cache=False, cylinder=False):
         flags |= p.URDF_ENABLE_CACHED_GRAPHICS_SHAPES
     if cylinder:
         flags |= p.URDF_USE_IMPLICIT_CYLINDER
+    if use_mtl:
+        flags |= p.URDF_USE_MATERIAL_COLORS_FROM_MTL
     return flags
 
 def load_pybullet(filename, fixed_base=False, scale=1., **kwargs):
@@ -1550,3 +1552,15 @@ def sample_edge_pose(polygon, world_from_surface, mesh):
         surface_from_origin = geometry.Pose(point, geometry.Euler(yaw=theta))
         yield geometry.multiply(world_from_surface, surface_from_origin, origin_from_base)
 
+def set_pbrobot_clientid(client_id):
+    pb_robot.aabb.set_client(client_id)
+    pb_robot.body.set_client(client_id)
+    pb_robot.collisions.set_client(client_id)
+    pb_robot.geometry.set_client(client_id)
+    pb_robot.grasp.set_client(client_id)
+    pb_robot.joint.set_client(client_id)
+    pb_robot.link.set_client(client_id)
+    pb_robot.panda.set_client(client_id)
+    pb_robot.planning.set_client(client_id)
+    pb_robot.utils.set_client(client_id)
+    pb_robot.viz.set_client(client_id)

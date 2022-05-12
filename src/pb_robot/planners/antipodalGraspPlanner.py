@@ -32,6 +32,7 @@ class GraspSimulationClient:
         self.shapenet_root = '/home/mnosew/workspace/object_models/shapenet-sem/urdfs'
 
         self.pb_client_id = pb_robot.utils.connect(use_gui=True if show_pybullet else False)
+        pb_robot.utils.set_pbrobot_clientid(self.pb_client_id)
         p.setGravity(0, 0, 0, physicsClientId=self.pb_client_id)
         self.graspable_body = graspable_body
         self.urdf_directory = urdf_directory
@@ -123,9 +124,10 @@ class GraspSimulationClient:
         return urdf_path
 
     def _load_hand(self):
+        pb_robot.utils.set_pbrobot_clientid(self.pb_client_id)
         hand = pb_robot.panda.PandaHand()
         init_pos, init_orn = [0.1, -0.115, 0.5], [0, 0, 0, 1]
-        hand_control = pb_robot.panda_controls.FloatingHandControl(hand, init_pos, init_orn)
+        hand_control = pb_robot.panda_controls.FloatingHandControl(hand, init_pos, init_orn, client_id=self.pb_client_id)
         hand_control.open()
 
         p.changeDynamics(hand.id, 0, lateralFriction=1, contactStiffness=30000, contactDamping=1000, spinningFriction=0.01, frictionAnchor=1, physicsClientId=self.pb_client_id)
