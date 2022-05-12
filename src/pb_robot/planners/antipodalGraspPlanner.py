@@ -1,4 +1,5 @@
 from collections import namedtuple
+from sysconfig import is_python_build
 import pb_robot
 import trimesh
 import pybullet as p
@@ -258,6 +259,11 @@ class GraspSimulationClient:
         else:
             scene.set_camera(angles=(np.pi/2, 0, np.pi/4), distance=0.5, center=self.mesh.centroid)
             scene.show()   
+
+    def tm_get_aabb(self, pose):
+        tform = pb_robot.geometry.tform_from_pose(pose)
+        return self.mesh.apply_transform(tform).bounds
+
        
 
 class GraspStabilityChecker:
