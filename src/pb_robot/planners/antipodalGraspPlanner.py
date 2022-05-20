@@ -1,5 +1,4 @@
 from collections import namedtuple
-from sysconfig import is_python_build
 import pb_robot
 import trimesh
 import pybullet as p
@@ -30,9 +29,10 @@ class GraspSimulationClient:
     def __init__(self, graspable_body, show_pybullet, urdf_directory):
         """ Support both PyBullet and Trimesh for simulations and visualizations.
         """
-        self.shapenet_root = '/home/mnosew/workspace/object_models/shapenet-sem/urdfs'
+        self.shapenet_root = '/home/mnosew/workspace/object_models/shapenet-sem'
 
         self.pb_client_id = pb_robot.utils.connect(use_gui=True if show_pybullet else False)
+        
         pb_robot.utils.set_pbrobot_clientid(self.pb_client_id)
         p.setGravity(0, 0, 0, physicsClientId=self.pb_client_id)
         self.graspable_body = graspable_body
@@ -74,7 +74,7 @@ class GraspSimulationClient:
             # Update the URDF parameters.
             urdf_path = os.path.join(dst_path, 'model.urdf')
         elif object_dataset.lower() == 'shapenet':
-            src_path = os.path.join(self.shapenet_root, f'{object_name}.urdf')
+            src_path = os.path.join(self.shapenet_root, 'urdfs', f'{object_name}.urdf')
             dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz.urdf' % (graspable_body.object_name, graspable_body.mass, graspable_body.friction, graspable_body.com[0], graspable_body.com[1], graspable_body.com[2])
             dst_path = os.path.join(self.urdf_directory, dst_object_name)
             shutil.copy(src_path, dst_path)
@@ -141,6 +141,11 @@ class GraspSimulationClient:
 
         scale = visual_data[3][0]
         mesh_fname = visual_data[4]
+        dataset, object_id = self.graspable_body.object_name.split('::')
+        if 'ShapeNet' == dataset:
+            object_id = object_id.split('_')[-1]
+            mesh_fname = os.path.join(self.shapenet_root, 'visual_models', f'{object_id}_centered.obj')
+
         pb_mesh = pb_robot.meshes.read_obj(mesh_fname, decompose=False)
         t_mesh = trimesh.Trimesh(pb_mesh.vertices, pb_mesh.faces, face_colors=[[150, 150, 150, 150]]*len(pb_mesh.faces))
         t_mesh.fix_normals()
@@ -282,12 +287,17 @@ class GraspStabilityChecker:
     :label_type='contact': True if the object remains in the object's gripper.
     'label_type='relpose': True if the object's relative pose with the gripper does not change during the motion.
     """
-    def __init__(self, stability_direction='all', label_type='relpose', grasp_noise=0.0):
+    def __init__(self, graspable_body, stability_direction='all', label_type='relpose', grasp_noise=0.0, show_pybullet=False):
         assert(stability_direction in ['all', 'gravity'])
         assert(label_type in ['relpose', 'contact'])
         self.stability_direction = stability_direction
         self.label_type = label_type
         self.grasp_noise = grasp_noise
+
+        self.sim_client = GraspSimulationClient(graspable_body, show_pybullet=show_pybullet, urdf_directory='urdf_models')
+        self.reset_pose = p.getBasePositionAndOrientation(self.sim_client.body_id, physicsClientId=self.sim_client.pb_client_id)
+
+        self.show_pybullet = show_pybullet
 
     def get_noisy_grasp(self, grasp):
         pos, orn = grasp.ee_relpose
@@ -299,43 +309,51 @@ class GraspStabilityChecker:
             
         return new_grasp
 
+    def _reset(self):
+        p.resetBasePositionAndOrientation(self.sim_client.body_id, self.reset_pose[0], self.reset_pose[1], physicsClientId=self.sim_client.pb_client_id)
+        p.setGravity(0, 0, 0, physicsClientId=self.sim_client.pb_client_id)
+        pb_robot.utils.set_pbrobot_clientid(self.sim_client.pb_client_id)
+        self.sim_client.hand.Open()
 
-    def get_label(self, grasp, show_pybullet=False):
+    def get_label(self, grasp):
+        self._reset()
+        # input('Reset...')
+        
         grasp = self.get_noisy_grasp(grasp)
+        
+        self.sim_client.hand_control.set_pose(grasp.ee_relpose[0], grasp.ee_relpose[1])
+        self.sim_client.hand_control.close(force=grasp.force, wait=self.show_pybullet)
 
-        sim_client = GraspSimulationClient(grasp.graspable_body, show_pybullet=show_pybullet, urdf_directory='urdf_models')
-
-        sim_client.hand_control.set_pose(grasp.ee_relpose[0], grasp.ee_relpose[1])
-        sim_client.hand_control.close(force=grasp.force, wait=show_pybullet)
-
-        init_pose = sim_client.pb_get_pose()
+        init_pose = self.sim_client.pb_get_pose()
         if self.stability_direction == 'gravity':
-            sim_client.pb_set_gravity((0, 0, -10))
+            self.sim_client.pb_set_gravity((0, 0, -10))
 
             x, y, z = grasp.ee_relpose[0]
             for ix in range(0, 500):
-                sim_client.hand_control.move_to([x, y, z+0.001*ix], grasp.ee_relpose[1], grasp.force, wait=show_pybullet)
+                self.sim_client.hand_control.move_to([x, y, z+0.001*ix], grasp.ee_relpose[1], grasp.force, wait=self.show_pybullet)
 
             for _ in range(100):
-                sim_client.hand_control.move_to([x, y, z + 0.001*500], grasp.ee_relpose[1], grasp.force, wait=show_pybullet)
+                self.sim_client.hand_control.move_to([x, y, z + 0.001*500], grasp.ee_relpose[1], grasp.force, wait=self.show_pybullet)
         else:
-            gravity_vectors = self._get_gravity_vectors(20)
+            gravity_vectors = self._get_gravity_vectors(10)
             for gx in range(gravity_vectors.shape[0]):
-                sim_client.pb_set_gravity(gravity_vectors[gx, :])
+                self.sim_client.pb_set_gravity(gravity_vectors[gx, :])
                 for _ in range(100):
-                    sim_client.hand_control.move_to(grasp.ee_relpose[0], grasp.ee_relpose[1], grasp.force, wait=show_pybullet)
-        end_pose = sim_client.pb_get_pose()
+                    self.sim_client.hand_control.move_to(grasp.ee_relpose[0], grasp.ee_relpose[1], grasp.force, wait=self.show_pybullet)
+        end_pose = self.sim_client.pb_get_pose()
 
         pos_diff = np.linalg.norm(np.array(end_pose[0])-np.array(init_pose[0]))
         angle_diff = pb_robot.geometry.quat_angle_between(end_pose[1], init_pose[1])
-        if pos_diff > 0.01 or angle_diff > 5:
+        if pos_diff > 0.02 or angle_diff > 10: # 0.01/5
             stable = False
         else:
             stable = True
 
-        print('Stable:', stable)
-        sim_client.disconnect()
+        print(f'Stable: {stable}\tPos: {pos_diff}\tAngle: {angle_diff}')
         return stable
+
+    def disconnect(self):
+        self.sim_client.disconnect()
 
     def _get_gravity_vectors(self, n_samples):
         points = []
@@ -409,6 +427,7 @@ class GraspSampler:
                 normal2 = np.array(self.sim_client.mesh.face_normals[index2, :])
                 # print('Normals:', normal1, normal2)
                 distance = pb_robot.geometry.get_distance(point1, point2)
+                # if distance > 0.01: continue
                 if distance > self.gripper_width or distance < 1e-3:
                     continue    
 
@@ -534,7 +553,7 @@ class GraspSampler:
                 # if collision: 
                 #     input('Collision, continue?')
                 #     pb_robot.viz.remove_all_debug()
- 
+
                 if not collision:
                     grasp = Grasp(graspable_body=self.graspable_body,
                                   pb_point1=pb_point1, 
@@ -594,7 +613,7 @@ class GraspableBodySampler:
             y = np.random.uniform(aabb_min[1], aabb_max[1])
             z = np.random.uniform(aabb_min[2], aabb_max[2])
             com = (x, y, z)
-            if sim_client.mesh.contains(np.array([com])):
+            if sim_client.mesh.convex_hull.contains(np.array([com])):
                 break
 
         com = apply_transform(sim_client.mesh_tform, com).tolist()
@@ -611,12 +630,13 @@ if __name__ == '__main__':
     objects_names = [name for name in os.listdir(ycb_objects.getDataPath()) if 'Ycb' in name] 
     # objects_names = ['YCB::YcbCrackerBox']
     #objects_names = ['ShapeNet::Desk_fe2a9f23035580ce239883c5795189ed']
-    objects_names = ['ShapeNet::ComputerMouse_379e93edfd0cb9e4cc034c03c3eb69d']
+    #objects_names = ['ShapeNet::ComputerMouse_379e93edfd0cb9e4cc034c03c3eb69d']
+    #objects_names = ['ShapeNet::Chair_198a3e82b102529c4904d89e9169817b']
+    #objects_names = ['ShapeNet::Barstool_55e7dc1021e15181a495c196d4f0cebb']
+    #objects_names = ['ShapeNet::Dresser_e9e3f04bce3933a2c62986712894256b']
     #objects_names = ['ShapeNet::MilkCarton_64018b545e9088303dd0d6160c4dfd18']
-    #objects_names = ['ShapeNet::WineGlass_2d89d2b3b6749a9d99fbba385cc0d41d']
-    objects_names = ['ShapeNet::WallLamp_8be32f90153eb7281b30b67ce787d4d3']    
-    
-    labeler = GraspStabilityChecker(stability_direction='all', label_type='relpose', grasp_noise=0.0025)
+    objects_names = ['ShapeNet::WineGlass_2d89d2b3b6749a9d99fbba385cc0d41d']
+    #objects_names = ['ShapeNet::WallLamp_8be32f90153eb7281b30b67ce787d4d3']    
 
     object_name = random.choice(objects_names)
     graspable_body = GraspableBody(object_name=object_name, 
@@ -624,12 +644,12 @@ if __name__ == '__main__':
         mass=0.52519492, 
         friction=0.57660351)
 
-    #graspable_body = GraspableBody(object_name=object_name, com=(0, 0, 0), mass=0.1, friction=1.0)
-    #graspable_body = GraspableBodySampler.sample_random_object_properties(object_name)
+    graspable_body = GraspableBody(object_name=object_name, com=(-0.04, 0, 0), mass=1.0, friction=0.5)
+    graspable_body = GraspableBodySampler.sample_random_object_properties(object_name)
     
     grasp_sampler = GraspSampler(graspable_body=graspable_body, antipodal_tolerance=30, show_pybullet=True)
-    grasp_sampler.sim_client.mesh.show()
-    n_samples = 50
+    # grasp_sampler.sim_client.mesh.show()
+    n_samples = 5
     grasps = []
     for lx in range(0, n_samples):
         print('Sampling %d/%d...' % (lx, n_samples))
@@ -640,10 +660,20 @@ if __name__ == '__main__':
     sim_client.tm_show_grasps(grasps)#, fname='test.png')
     sim_client.disconnect()
     
+    labeler = GraspStabilityChecker(graspable_body, 
+        stability_direction='all', 
+        label_type='relpose', 
+        grasp_noise=0.0, 
+        show_pybullet=False)
     labels = []
     for lx, grasp in enumerate(grasps):
         print('Labeling %d/%d...' % (lx, n_samples))
-        labels.append(labeler.get_label(grasp, show_pybullet=False))
+        labels.append(labeler.get_label(grasp))
+         
+        # l1 = labeler.get_label(grasp, show_pybullet=False)
+        # l2 = labeler.get_label(grasp, show_pybullet=False)
+        # print('Consistant:', l1 == l2)
+    labeler.disconnect()
 
     sim_client = GraspSimulationClient(graspable_body, show_pybullet=False, urdf_directory='object_models')
     sim_client.tm_show_grasps(grasps, labels)#, fname='test.png')
