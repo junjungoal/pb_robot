@@ -9,6 +9,7 @@ import random
 from odio_urdf import *
 import shutil
 import copy
+import sys
 
 from pybullet_object_models import ycb_objects
 from pb_robot import body
@@ -30,9 +31,13 @@ class GraspSimulationClient:
     def __init__(self, graspable_body, show_pybullet, urdf_directory):
         """ Support both PyBullet and Trimesh for simulations and visualizations.
         """
-        self.shapenet_root = '/home/mnosew/workspace/object_models/shapenet-sem/urdfs'
+        self.shapenet_root = '/home/mike/workspace/object_models/shapenet-sem/urdfs'
 
         self.pb_client_id = pb_robot.utils.connect(use_gui=True if show_pybullet else False)
+        if self.pb_client_id > 5:
+            print('[ERROR] Too many pybullet clients open.')
+            sys.exit()
+        
         pb_robot.utils.set_pbrobot_clientid(self.pb_client_id)
         p.setGravity(0, 0, 0, physicsClientId=self.pb_client_id)
         self.graspable_body = graspable_body
