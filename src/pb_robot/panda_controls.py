@@ -285,11 +285,13 @@ class FloatingHandControl(object):
 
     def _actuate_fingers(self, max_force, wait=False):
         exit_count = 0
+        n_count = 0
         while True:
+            n_count += 1
             p.setJointMotorControlArray(bodyUniqueId=self.hand.id,
                                         jointIndices=[0, 1],
                                         controlMode=p.VELOCITY_CONTROL,
-                                        targetVelocities=[self.force_dir*0.01, self.force_dir*0.01],
+                                        targetVelocities=[self.force_dir*0.02, self.force_dir*0.02],
                                         forces=[max_force, max_force],
                                         physicsClientId=self.client_id)
 
@@ -301,7 +303,7 @@ class FloatingHandControl(object):
             if numpy.abs(force0) + 0.01 >= max_force:
                 exit_count += 1
             
-            if exit_count >= 20:
+            if exit_count >= 40:
                 break
 
     def move_to(self, hand_pos, hand_orn, force, wait=False):
@@ -319,7 +321,7 @@ class FloatingHandControl(object):
             force = p.getJointState(self.hand.id, 1, physicsClientId=self.client_id)[3]
             # print('Grip Force:', force)
             if wait:
-                time.sleep(0.01)
+                time.sleep(0.001)
 
             if numpy.linalg.norm(numpy.subtract(self.hand.get_base_link_point(), hand_pos)) < 0.005:
                 break
