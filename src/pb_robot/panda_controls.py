@@ -232,6 +232,142 @@ class PandaControls(object):
         for i in range(len(path)):
             self.cartImpedance(path[i], stiffness_params)
 
+class ParallelFloatingHandControl(object):
+    """
+    This class is meant to control a floating hand that
+    can move through the environment.
+    """
+    def __init__(self, hands, offsets, init_pos, init_orn, client_id):
+        self.client_id = client_id
+        
+        self.hands = hands
+        self.offsets = offsets
+        self.cids = []
+        for hand, offset in zip(self.hands, self.offsets):
+            hand.Open()
+
+            init_pos_w_offset = (init_pos[0]+offset[0], init_pos[1]+offset[1], init_pos[2]+offset[2])
+            p.resetBasePositionAndOrientation(hand.id, init_pos_w_offset, init_orn, physicsClientId=self.client_id)
+            self.cids.append(p.createConstraint(parentBodyUniqueId=hand.id,
+                                        parentLinkIndex=-1,
+                                        childBodyUniqueId=-1,
+                                        childLinkIndex=-1,
+                                        jointType=p.JOINT_FIXED,
+                                        jointAxis=[0, 0, 0],
+                                        parentFramePosition=[0, 0, 0],
+                                        parentFrameOrientation=[0, 0, 0, 1],
+                                        childFramePosition=init_pos_w_offset,
+                                        childFrameOrientation=init_orn,
+                                        physicsClientId=self.client_id))
+            p.setJointMotorControl2(hand.id, 0, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
+            p.setJointMotorControl2(hand.id, 1, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
+            c = p.createConstraint(hand.id,
+                       1,
+                       hand.id,
+                       0,
+                       jointType=p.JOINT_GEAR,
+                       jointAxis=[1, 0, 0],
+                       parentFramePosition=[0, 0, 0],
+                       childFramePosition=[0, 0, 0],
+                       physicsClientId=self.client_id)
+            p.changeConstraint(c, gearRatio=-1, erp=0.1, maxForce=10000, physicsClientId=self.client_id)
+
+        self.force_dir = 1  # -1 is close, 1 is open
+        # p.changeDynamics(hand.id, 0, linearDamping=0, angularDamping=0)
+        # p.changeDynamics(hand.id, 1, linearDamping=0, angularDamping=0)
+
+    def open(self, wait=False):
+        self.force_dir = 1
+        self._actuate_fingers(max_forces=[2]*len(self.hands), wait=wait)
+
+    def close(self, forces, wait=False):
+        self.force_dir = -1
+        if type(forces) == int:
+            forces = [forces]*len(self.hands)
+        self._actuate_fingers(max_forces=forces, wait=wait)
+
+    def _actuate_fingers(self, max_forces, wait=False):
+        exit_count = 0
+        n_count = 0
+
+        complete = [False]*len(self.hands)
+
+        while True:
+            n_count += 1
+            for hand, max_force in zip(self.hands, max_forces):
+                p.setJointMotorControlArray(bodyUniqueId=hand.id,
+                                            jointIndices=[0, 1],
+                                            controlMode=p.VELOCITY_CONTROL,
+                                            targetVelocities=[self.force_dir*0.02, self.force_dir*0.02],
+                                            forces=[max_force, max_force],
+                                            physicsClientId=self.client_id)
+            p.stepSimulation(physicsClientId=self.client_id)
+            if wait: 
+                time.sleep(0.01)
+            for hx, hand in enumerate(self.hands):
+                force0, force1 = p.getJointState(hand.id, 0, physicsClientId=self.client_id)[3], p.getJointState(hand.id, 1, physicsClientId=self.client_id)[3]
+                
+                if numpy.abs(force0) + 0.01 >= max_forces[hx]:
+                    exit_count += 1
+                
+                if exit_count >= 40:
+                    complete[hx] = True
+            
+            if all(complete):
+                break
+
+    def move_to(self, hand_poses, forces, wait=False):
+        # Use force control to maintain gripper strength.
+        hand_poses = self._get_poses_with_offsets(hand_poses)
+        for hand in self.hands:
+            p.setJointMotorControl2(hand.id, 0, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
+            p.setJointMotorControl2(hand.id, 1, p.VELOCITY_CONTROL, force=0, physicsClientId=self.client_id)
+        
+        complete = [False]*len(self.hands)
+        while True:
+            for hx in range(len(self.hands)):
+                p.setJointMotorControlArray(bodyUniqueId=self.hands[hx].id,
+                                            jointIndices=[0, 1],
+                                            controlMode=p.TORQUE_CONTROL,
+                                            forces=[self.force_dir*forces[hx], self.force_dir*forces[hx]],
+                                            physicsClientId=self.client_id)
+                p.changeConstraint(self.cids[hx], hand_poses[hx][0], jointChildFrameOrientation=hand_poses[hx][1], maxForce=100, physicsClientId=self.client_id)
+            
+            p.stepSimulation(physicsClientId=self.client_id)
+            for hx in range(len(self.hands)):
+                force = p.getJointState(self.hands[hx].id, 1, physicsClientId=self.client_id)[3]
+                # print('Grip Force:', force)
+                if wait:
+                    time.sleep(0.001)
+
+                if numpy.linalg.norm(numpy.subtract(self.hands[hx].get_base_link_point(), hand_poses[hx][0])) < 0.005:
+                    complete[hx] = True
+
+            if all(complete):
+                break
+    
+    def _get_poses_with_offsets(self, poses):
+        new_poses = []
+        for hx in range(len(self.hands)):
+            pos, orn = poses[hx]
+            offset = self.offsets[hx]
+            new_pos = (pos[0]+offset[0], pos[1]+offset[1], pos[2]+offset[2])
+            new_poses.append((new_pos, orn))
+        return new_poses
+
+    def set_pose(self, hand_poses):
+        hand_poses = self._get_poses_with_offsets(hand_poses)
+        for hx in range(len(self.hands)):
+            
+            p.resetBasePositionAndOrientation(self.hands[hx].id, 
+                hand_poses[hx][0], 
+                hand_poses[hx][1], 
+                physicsClientId=self.client_id)
+            p.changeConstraint(self.cids[hx],
+                hand_poses[hx][0], 
+                jointChildFrameOrientation=hand_poses[hx][1], 
+                maxForce=50, 
+                physicsClientId=self.client_id)
 
 class FloatingHandControl(object):
     """
