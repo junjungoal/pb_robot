@@ -298,7 +298,7 @@ class ParallelFloatingHandControl(object):
                 p.setJointMotorControlArray(bodyUniqueId=hand.id,
                                             jointIndices=[0, 1],
                                             controlMode=p.VELOCITY_CONTROL,
-                                            targetVelocities=[self.force_dir*0.02, self.force_dir*0.02],
+                                            targetVelocities=[self.force_dir*0.01, self.force_dir*0.01],
                                             forces=[max_force, max_force],
                                             physicsClientId=self.client_id)
             p.stepSimulation(physicsClientId=self.client_id)
@@ -338,7 +338,7 @@ class ParallelFloatingHandControl(object):
                 force = p.getJointState(self.hands[hx].id, 1, physicsClientId=self.client_id)[3]
                 # print('Grip Force:', force)
                 if wait:
-                    time.sleep(0.001)
+                    time.sleep(0.01)
 
                 if numpy.linalg.norm(numpy.subtract(self.hands[hx].get_base_link_point(), hand_poses[hx][0])) < 0.005:
                     complete[hx] = True
