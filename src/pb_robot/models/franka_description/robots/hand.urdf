@@ -20,7 +20,8 @@
   <link name="panda_leftfinger">
     <visual>
       <geometry>
-        <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
+        <!-- <mesh filename="package://franka_description/meshes/visual/finger.dae"/> -->
+        <mesh filename="package://franka_description/meshes/collision/finger.stl"/>
       </geometry>
       <material name="panda_grey"/>
     </visual>
@@ -34,7 +35,8 @@
     <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
+        <!-- <mesh filename="package://franka_description/meshes/visual/finger.dae"/> -->
+        <mesh filename="package://franka_description/meshes/collision/finger.stl"/>
       </geometry>
       <material name="panda_grey"/>
     </visual>
