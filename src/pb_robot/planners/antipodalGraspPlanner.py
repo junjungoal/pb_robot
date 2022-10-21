@@ -41,9 +41,9 @@ def offset_pose(pose, offset):
 
 class GraspSimulationClient:
 
-    def __init__(self, graspable_body, show_pybullet, urdf_directory, recompute_inertia=False):
+    def __init__(self, graspable_body, show_pybullet, recompute_inertia=False):
         """ Support both PyBullet and Trimesh for simulations and visualizations. """
-        self.shapenet_root = '/home/mnosew/workspace/object_models/shapenet-sem/'
+        self.shapenet_root = os.environ['SHAPENET_ROOT']
         self.recompute_inertia = recompute_inertia
 
         self.pb_client_id = pb_robot.utils.connect(use_gui=True if show_pybullet else False)
@@ -54,9 +54,9 @@ class GraspSimulationClient:
         pb_robot.utils.set_pbrobot_clientid(self.pb_client_id)
         p.setGravity(0, 0, 0, physicsClientId=self.pb_client_id)
         self.graspable_body = graspable_body
-        self.urdf_directory = urdf_directory
-        if not os.path.exists(urdf_directory):
-            os.mkdir(urdf_directory)
+        self.urdf_directory = os.path.join(self.shapenet_root, 'tmp_urdfs')
+        if not os.path.exists(self.urdf_directory):
+            os.mkdir(self.urdf_directory)
 
         urdf_path = self._get_object_urdf(graspable_body)
         if recompute_inertia:
@@ -381,7 +381,6 @@ class GraspStabilityChecker:
         self.sim_client = GraspSimulationClient(
             graspable_body,
             show_pybullet=show_pybullet,
-            urdf_directory='urdf_models',
             recompute_inertia=recompute_inertia
         )
         self.reset_pose = p.getBasePositionAndOrientation(
@@ -591,8 +590,7 @@ class GraspSampler:
         :param show_pybullet: Use the PyBullet GUI.
         """
         self.sim_client = GraspSimulationClient(graspable_body=graspable_body,
-                                                show_pybullet=show_pybullet,
-                                                urdf_directory=urdf_directory)
+                                                show_pybullet=show_pybullet)
 
         self.gripper_width = 0.08
         self.antipodal_tolerance = np.deg2rad(antipodal_tolerance)
@@ -839,7 +837,6 @@ class GraspableBodySampler:
         sim_client = GraspSimulationClient(
             tmp_body,
             show_pybullet=False,
-            urdf_directory='urdf_models'
         )
         print(f'Object watertight:', sim_client.mesh.is_watertight)
         # if not sim_client.mesh.is_watertight:
@@ -938,8 +935,7 @@ def main_serial():
     grasp_sampler.disconnect()
     sim_client = GraspSimulationClient(
         graspable_body,
-        show_pybullet=False,
-        urdf_directory='object_models'
+        show_pybullet=False
     )
 
     #sim_client.tm_show_grasps(grasps)#, fname='test.png')
@@ -976,8 +972,7 @@ def main_serial():
 
     print('Equals: ', (np.array(labels1) == np.array(labels2)).sum())
     sim_client = GraspSimulationClient(graspable_body,
-                                       show_pybullet=False,
-                                       urdf_directory='object_models')
+                                       show_pybullet=False)
     sim_client.tm_show_grasps(grasps, labels1)
     sim_client.tm_show_grasps(grasps, np.array(labels1) == np.array(labels2))#, fname='test.png')
     sim_client.disconnect()
@@ -1025,8 +1020,7 @@ def vary_object_properties():
 
             # sim_client = GraspSimulationClient(
             #     graspable_body,
-            #     show_pybullet=False,
-            #     urdf_directory='object_models'
+            #     show_pybullet=False
             # )
             # #sim_client.tm_show_grasps(grasps)#, fname='test.png')
             # sim_client.disconnect()
@@ -1047,8 +1041,7 @@ def vary_object_properties():
             # print('Equals: ', (np.array(labels1) == np.array(labels2)).sum())
             sim_client = GraspSimulationClient(
                 graspable_body,
-                show_pybullet=False,
-                urdf_directory='object_models'
+                show_pybullet=False
             )
             sim_client.tm_show_grasps(
                 grasps,
