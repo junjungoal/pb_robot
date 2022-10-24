@@ -62,6 +62,12 @@ class GraspSimulationClient:
 
         pb_robot.utils.set_pbrobot_clientid(self.pb_client_id)
         p.setGravity(0, 0, 0, physicsClientId=self.pb_client_id)
+        p.setTimeStep(1/240., physicsClientId=self.pb_client_id)
+        p.setPhysicsEngineParameter(
+            numSolverIterations=300,
+            physicsClientId=self.pb_client_id
+        )
+
         self.graspable_body = graspable_body
         self.urdf_directory = os.path.join(self.shapenet_root, 'tmp_urdfs')
         if not os.path.exists(self.urdf_directory):
@@ -303,7 +309,7 @@ class GraspSimulationClient:
                           useMaximalCoordinates=True,
                           physicsClientId=self.pb_client_id)
 
-    def pb_check_grasp_collision(self, grasp_pose):
+    def pb_check_grasp_collision(self, grasp_pose, distance):
         self.hand.set_base_link_pose(grasp_pose)
         # self.hand.set_base_link_pose(pb_robot.geometry.invert(grasp_pose))
         result = p.getClosestPoints(bodyA=self.hand.id,
@@ -311,6 +317,18 @@ class GraspSimulationClient:
                                     distance=0,
                                     physicsClientId=self.pb_client_id)
         collision = len(result) != 0
+
+        if not collision:
+            half_distance = (distance + 0.08)/2.
+            self.hand.MoveTo(half_distance)
+            result = p.getClosestPoints(bodyA=self.hand.id,
+                                        bodyB=self.body_id,
+                                        distance=0,
+                                        physicsClientId=self.pb_client_id)
+            collision = len(result) != 0
+            if collision:
+                print('Rejected.')
+            self.hand.Open()
         # print(result)
         # if len(result) != 0:
         #     pb_robot.viz.draw_point(result[0][5])
@@ -842,7 +860,10 @@ class GraspSampler:
                     pb_robot.geometry.Pose(pb_robot.geometry.Point(z=-finger_length))
                 )  # FINGER_LENGTH
 
-                collision = self.sim_client.pb_check_grasp_collision(grasp_pose)
+                collision = self.sim_client.pb_check_grasp_collision(
+                    grasp_pose=grasp_pose, 
+                    distance=pb_robot.geometry.get_length(pb_point2 - pb_point1)
+                )
                 # import time
                 # if collision:
                 #     input('Collision, continue?')
@@ -936,14 +957,20 @@ def main_serial():
     # objects_names = ['ShapeNet::Barstool_55e7dc1021e15181a495c196d4f0cebb']
     # objects_names = ['ShapeNet::Dresser_e9e3f04bce3933a2c62986712894256b']
     # objects_names = ['ShapeNet::MilkCarton_64018b545e9088303dd0d6160c4dfd18']
-    # objects_names = ['ShapeNet::WineGlass_2d89d2b3b6749a9d99fbba385cc0d41d']
+    objects_names = ['ShapeNet::WineGlass_2d89d2b3b6749a9d99fbba385cc0d41d']
     # objects_names = ['ShapeNet::WallLamp_8be32f90153eb7281b30b67ce787d4d3']
     # objects_names = ['ShapeNet::USBStick_d1d5e86583e0e5f950648c342f01b361']
     # objects_names = ['ShapeNet::TV_1a595fd7e7043a06b0d7b0d4230df8ca']
     # objects_names = ['ShapeNet::Sideboard_12f1e4964078850cc7113d9e058b9db7']
     # objects_names = ['ShapeNet::Couch_1ed2e9056a9e94a693e60794f9200b7']
     # objects_names = ['ShapeNet::WallUnit_a642e3f84392ebacc9dd845c88786daa']
-    objects_names = ['Primitive::Cylinder_1637429346034696960']
+    # objects_names = ['Primitive::Cylinder_1637429346034696960']
+    # objects_names = ['ShapeNet::Armoire_1857891cdabf6824b0fd397b9007d287']
+    # objects_names = ['ShapeNet::TableLamp_366b8a4c8e38961597910e2efc6028df']
+    objects_names = ['ShapeNet::Helicopter_3b4cbd4fd5f6819bea4732296ea50647']
+    # objects_names =['ShapeNet::Lamp_de623f89d4003d189a08db804545b684']
+    # objects_names = ['ShapeNet::StandingClock_cca5dddf86affe9a23522985f649a9ae']
+    # objects_names = ['Primitive::Box_970355850778123776']
 
     object_name = random.choice(objects_names)
     # graspable_body = GraspableBody(
@@ -961,7 +988,7 @@ def main_serial():
         object_name=object_name,
         # com=(-0.1386, 0.0019, -0.0419),
         com=(0., 0., 0.),
-        mass=0.01, friction=0.84
+        mass=0.6, friction=0.3
     )  # mass=0.908
     # graspable_body = GraspableBody(
     #     object_name=object_name,
@@ -1029,7 +1056,7 @@ def main_serial():
     for lx, grasp in enumerate(grasps):
         print('Labeling %d/%d...' % (lx, n_samples))
         labels1.append(labeler1.get_label(grasp))
-        labels2.append(labeler2.get_label(grasp))
+        # labels2.append(labeler2.get_label(grasp))
 
         # l1 = labeler.get_label(grasp, show_pybullet=False)
         # l2 = labeler.get_label(grasp, show_pybullet=False)
@@ -1037,11 +1064,11 @@ def main_serial():
     labeler1.disconnect()
     labeler2.disconnect()
 
-    print('Equals: ', (np.array(labels1) == np.array(labels2)).sum())
+    # print('Equals: ', (np.array(labels1) == np.array(labels2)).sum())
     sim_client = GraspSimulationClient(graspable_body,
                                        show_pybullet=False)
     sim_client.tm_show_grasps(grasps, labels1)
-    sim_client.tm_show_grasps(grasps, np.array(labels1) == np.array(labels2))  # , fname='test.png')
+    # sim_client.tm_show_grasps(grasps, np.array(labels1) == np.array(labels2))  # , fname='test.png')
     sim_client.disconnect()
 
 
