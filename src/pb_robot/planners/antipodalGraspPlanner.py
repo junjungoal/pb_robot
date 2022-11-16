@@ -139,7 +139,8 @@ class GraspSimulationClient:
                 graspable_body.com[2]
             )
             dst_path = os.path.join(self.urdf_directory, dst_object_name)
-            shutil.copy(src_path, dst_path)
+            if not os.path.exists(dst_path):
+                shutil.copy(src_path, dst_path)
             urdf_path = dst_path
         elif object_dataset.lower() == 'primitive':
             src_path = os.path.join(self.primitive_root, 'urdfs', f'{object_name}.urdf')
@@ -152,7 +153,8 @@ class GraspSimulationClient:
                 graspable_body.com[2]
             )
             dst_path = os.path.join(self.urdf_directory, dst_object_name)
-            shutil.copy(src_path, dst_path)
+            if not os.path.exists(dst_path):
+                shutil.copy(src_path, dst_path)
             urdf_path = dst_path
 
         robot = self._parse_urdf_to_odio_tree(urdf_path)
@@ -190,9 +192,9 @@ class GraspSimulationClient:
 
         robot[0].append(contact)
         robot[0].append(inertial)
-
-        with open(urdf_path, 'w') as handle:
-            handle.write(robot.urdf())
+        if not os.path.exists(urdf_path):
+            with open(urdf_path, 'w') as handle:
+                handle.write(robot.urdf())
 
         return urdf_path
 
@@ -326,8 +328,6 @@ class GraspSimulationClient:
                                         distance=0,
                                         physicsClientId=self.pb_client_id)
             collision = len(result) != 0
-            if collision:
-                print('Rejected.')
             self.hand.Open()
         # print(result)
         # if len(result) != 0:
@@ -400,7 +400,7 @@ class GraspSimulationClient:
     def disconnect(self):
         p.disconnect(self.pb_client_id)
 
-    def tm_show_grasps(self, grasps, labels=None, fname=''):
+    def tm_show_grasps(self, grasps, labels=None, fname='', acquired=[]):
         grasp_arrows = []
         for gx, g in enumerate(grasps):
             if labels is not None:
@@ -410,11 +410,18 @@ class GraspSimulationClient:
 
             if isinstance(g, Grasp):
                 grasp_arrows += self._get_trimesh_grasp_viz(g, color)
+            elif g.shape[0] == 3:
+                grasp_arrows += [trimesh.points.PointCloud([g], colors=[color])]
             else:
                 grasp_arrows += self._get_trimesh_grasp_array_viz(g, color)
         axis = self._get_tm_com_axis()
-        scene = trimesh.scene.Scene([self.mesh, axis] + grasp_arrows)
+        self.mesh.visual.face_colors[:,-1] = 100
 
+        if len(acquired) > 0:
+            acquired_points = [trimesh.points.PointCloud(acquired, colors=[[0, 0, 255, 255]]*len(acquired))]
+        else:
+            acquired_points = []
+        scene = trimesh.scene.Scene([self.mesh, axis] + grasp_arrows + acquired_points)
         if len(fname) > 0:
             for angles, name in zip([(0, 0, 0), (np.pi / 2, 0, 0), (np.pi / 2, 0, np.pi / 2)],
                                     ['z', 'y', 'x']):
@@ -680,12 +687,12 @@ class GraspSampler:
         self.show_pybullet = show_pybullet
         self.graspable_body = graspable_body
 
-    def _sample_antipodal_points_rays(self, max_attempts=5000):
+    def _sample_antipodal_points_rays(self, max_attempts=1000):
         """ Return two antipodal points in the visual frame (which may not be the object frame).
         """
         points = []
-        # for _ in range(max_attempts):
         while True:
+        # for _ in range(max_attempts):
             [point1], [index1] = self.sim_client.mesh.sample(1, return_index=True)
             normal1 = np.array(self.sim_client.mesh.face_normals[index1, :])
 
@@ -731,7 +738,7 @@ class GraspSampler:
                 if (error1 > self.antipodal_tolerance) or (error2 > self.antipodal_tolerance):
                     continue
 
-                return point1, point2
+                return point1, point2, (error1, error2)
         return None, None
 
     def _sample_antipodal_points(self):
@@ -782,9 +789,8 @@ class GraspSampler:
 
     def sample_grasp(self, force, show_trimesh=False, max_attempts=100):
 
-        # for _ in range(max_attempts):
         while True:
-            tm_point1, tm_point2 = self._sample_antipodal_points_rays()
+            tm_point1, tm_point2, antipodal_angle = self._sample_antipodal_points_rays()
             if tm_point1 is None:
                 return None
             # The visual frame of reference might be different from the object's link frame.
@@ -883,7 +889,7 @@ class GraspSampler:
 
                     if show_trimesh:
                         self.sim_client.tm_show_grasp(grasp)
-
+                    # print('Angle:', np.rad2deg(np.max(antipodal_angle)))
                     return grasp
 
     def disconnect(self):
@@ -971,6 +977,10 @@ def main_serial():
     # objects_names =['ShapeNet::Lamp_de623f89d4003d189a08db804545b684']
     # objects_names = ['ShapeNet::StandingClock_cca5dddf86affe9a23522985f649a9ae']
     # objects_names = ['Primitive::Box_970355850778123776']
+    objects_names = ['ShapeNet::DrinkBottle_c0b6be0fb83b237f504721639e19f609']
+    objects_names = ['ShapeNet::FloorLamp_9f47557e429f4734c2d56e1f87f4dc83']
+
+    objects_names = ['Primitive::Box_553711050557875456']
 
     object_name = random.choice(objects_names)
     # graspable_body = GraspableBody(
@@ -981,14 +991,14 @@ def main_serial():
 
     # graspable_body = GraspableBody(
     #     object_name=object_name,
-    #     com=(0.05, -0.02, -0.008),
-    #     mass=0.93, friction=0.24
+    #     com=(-0.03690317,  0.00957142,  0.00425203),
+    #     mass=0.418, friction=0.141
     # )  # m=0.93
     graspable_body = GraspableBody(
         object_name=object_name,
         # com=(-0.1386, 0.0019, -0.0419),
-        com=(0., 0., 0.),
-        mass=0.6, friction=0.3
+        com=(0., 0., -0.05),
+        mass=1.0, friction=1.0
     )  # mass=0.908
     # graspable_body = GraspableBody(
     #     object_name=object_name,
