@@ -110,27 +110,9 @@ class GraspSimulationClient:
         the specified intrinsic properties.
         """
         object_dataset, object_name = graspable_body.object_name.split('::')
-        if object_dataset.lower() == 'ycb':
-            # Copy all files for the object to a temporary location.
-            src_path = os.path.join(ycb_objects.getDataPath(), object_name)
-            dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz' % (
-                graspable_body.object_name,
-                graspable_body.mass,
-                graspable_body.friction,
-                graspable_body.com[0],
-                graspable_body.com[1],
-                graspable_body.com[2]
-            )
-
-            dst_path = os.path.join(self.urdf_directory, dst_object_name)
-            if not os.path.exists(dst_path):
-                shutil.copytree(src=src_path, dst=dst_path)
-
-            # Update the URDF parameters.
-            urdf_path = os.path.join(dst_path, 'model.urdf')
-        elif object_dataset.lower() == 'shapenet':
+        if object_dataset.lower() == 'shapenet':
             src_path = os.path.join(self.shapenet_root, 'urdfs', f'{object_name}.urdf')
-            dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz.urdf' % (
+            dst_object_name = '%s_%.3fm_%.3ff_%.3fcx_%.3fcy_%.3fcz.urdf' % (
                 graspable_body.object_name,
                 graspable_body.mass,
                 graspable_body.friction,
@@ -138,13 +120,11 @@ class GraspSimulationClient:
                 graspable_body.com[1],
                 graspable_body.com[2]
             )
-            dst_path = os.path.join(self.urdf_directory, dst_object_name)
-            if not os.path.exists(dst_path):
-                shutil.copy(src_path, dst_path)
-            urdf_path = dst_path
+            urdf_path = os.path.join(self.urdf_directory, dst_object_name)
+
         elif object_dataset.lower() == 'primitive':
             src_path = os.path.join(self.primitive_root, 'urdfs', f'{object_name}.urdf')
-            dst_object_name = '%s_%.2fm_%.2ff_%.2fcx_%.2fcy_%.2fcz.urdf' % (
+            dst_object_name = '%s_%.3fm_%.3ff_%.3fcx_%.3fcy_%.3fcz.urdf' % (
                 graspable_body.object_name,
                 graspable_body.mass,
                 graspable_body.friction,
@@ -152,10 +132,13 @@ class GraspSimulationClient:
                 graspable_body.com[1],
                 graspable_body.com[2]
             )
-            dst_path = os.path.join(self.urdf_directory, dst_object_name)
-            if not os.path.exists(dst_path):
-                shutil.copy(src_path, dst_path)
-            urdf_path = dst_path
+            urdf_path = os.path.join(self.urdf_directory, dst_object_name)
+
+        # Only create a tmp urdf the first time seeing an object.        
+        if os.path.exists(urdf_path):
+            return urdf_path
+        
+        shutil.copy(src_path, urdf_path)
 
         robot = self._parse_urdf_to_odio_tree(urdf_path)
 
@@ -192,9 +175,8 @@ class GraspSimulationClient:
 
         robot[0].append(contact)
         robot[0].append(inertial)
-        if not os.path.exists(urdf_path):
-            with open(urdf_path, 'w') as handle:
-                handle.write(robot.urdf())
+        with open(urdf_path, 'w') as handle:
+            handle.write(robot.urdf())
 
         return urdf_path
 
