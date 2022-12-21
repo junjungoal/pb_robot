@@ -1,4 +1,5 @@
 import os
+import queue
 import random
 import shutil
 import sys
@@ -134,7 +135,7 @@ class GraspSimulationClient:
             )
             urdf_path = os.path.join(self.urdf_directory, dst_object_name)
 
-        # Only create a tmp urdf the first time seeing an object.        
+        # Only create a tmp urdf the first time seeing an object.      
         if os.path.exists(urdf_path):
             return urdf_path
         
@@ -296,6 +297,7 @@ class GraspSimulationClient:
     def pb_check_grasp_collision(self, grasp_pose, distance):
         self.hand.set_base_link_pose(grasp_pose)
         # self.hand.set_base_link_pose(pb_robot.geometry.invert(grasp_pose))
+
         result = p.getClosestPoints(bodyA=self.hand.id,
                                     bodyB=self.body_id,
                                     distance=0,
@@ -382,9 +384,10 @@ class GraspSimulationClient:
     def disconnect(self):
         p.disconnect(self.pb_client_id)
 
-    def tm_show_grasps(self, grasps, labels=None, fname='', acquired=[]):
+    def tm_show_grasps(self, grasps, labels=None, forces=None, fname='', acquired=[]):
         grasp_arrows = []
         for gx, g in enumerate(grasps):
+            #if forces[gx] < 15: continue
             if labels is not None:
                 color = [0, 255, 0, 255] if labels[gx] == 1 else [255, 0, 0, 255]
             else:
@@ -393,7 +396,9 @@ class GraspSimulationClient:
             if isinstance(g, Grasp):
                 grasp_arrows += self._get_trimesh_grasp_viz(g, color)
             elif g.shape[0] == 3:
-                grasp_arrows += [trimesh.points.PointCloud([g], colors=[color])]
+                #grasp_arrows += [trimesh.points.PointCloud([g], colors=[color])]
+                grasp_arrows += [trimesh.primitives.Sphere(radius=forces[gx]*0.0005, center=g, color=color)]
+                grasp_arrows[-1].visual.face_colors = color
             else:
                 grasp_arrows += self._get_trimesh_grasp_array_viz(g, color)
         axis = self._get_tm_com_axis()
@@ -543,7 +548,7 @@ class GraspStabilityChecker:
         # import IPython
         # IPython.embed()
 
-        print(f'Stable: {stable}\tPos: {pos_diff}\tAngle: {angle_diff}')
+        # print(f'Stable: {stable}\tPos: {pos_diff}\tAngle: {angle_diff}')
         return stable
 
     def pb_draw_gravity(self, gravity_vectors):
@@ -669,12 +674,17 @@ class GraspSampler:
         self.show_pybullet = show_pybullet
         self.graspable_body = graspable_body
 
+
+
     def _sample_antipodal_points_rays(self, max_attempts=1000):
         """ Return two antipodal points in the visual frame (which may not be the object frame).
         """
         points = []
+
+        
         while True:
         # for _ in range(max_attempts):
+
             [point1], [index1] = self.sim_client.mesh.sample(1, return_index=True)
             normal1 = np.array(self.sim_client.mesh.face_normals[index1, :])
 
@@ -682,7 +692,6 @@ class GraspSampler:
 
             intersections = self.sim_client.mesh.ray.intersects_location([point1], [-normal1])
             hit_points, _, hit_faces = intersections
-
             if hit_points.shape[0] <= 1:
                 # Only found the origin as intersection point.
                 continue
@@ -691,10 +700,13 @@ class GraspSampler:
             face_weight = np.zeros((len(self.sim_client.mesh.faces)))
             face_weight[index_intersect] = 1.
 
-            for _ in range(10):
-                [point2], [index2] = self.sim_client.mesh.sample(
-                    1, return_index=True, face_weight=face_weight
-                )
+            points2, indices2 = self.sim_client.mesh.sample(
+                10, return_index=True, face_weight=face_weight
+            )
+            for point2, index2 in zip(points2, indices2):
+                # [point2], [index2] = self.sim_client.mesh.sample(
+                #     1, return_index=True, face_weight=face_weight
+                # )
 
                 # print(point1, point2, index1, index2)
                 normal2 = np.array(self.sim_client.mesh.face_normals[index2, :])
@@ -719,7 +731,6 @@ class GraspSampler:
                 # direction vector should be small.
                 if (error1 > self.antipodal_tolerance) or (error2 > self.antipodal_tolerance):
                     continue
-
                 return point1, point2, (error1, error2)
         return None, None
 
@@ -847,16 +858,13 @@ class GraspSampler:
                     grasp_pose,
                     pb_robot.geometry.Pose(pb_robot.geometry.Point(z=-finger_length))
                 )  # FINGER_LENGTH
-
                 collision = self.sim_client.pb_check_grasp_collision(
-                    grasp_pose=grasp_pose, 
+                    grasp_pose=grasp_pose,
                     distance=pb_robot.geometry.get_length(pb_point2 - pb_point1)
                 )
-                # import time
                 # if collision:
                 #     input('Collision, continue?')
                 #     pb_robot.viz.remove_all_debug()
-
                 if not collision:
                     grasp = Grasp(graspable_body=self.graspable_body,
                                   pb_point1=pb_point1,
@@ -885,8 +893,8 @@ class GraspableBodySampler:
     COM is sampled in % of containing bounding box and rejection sampling is
     used to make sure it lies within the convex-hull of the mesh.
     """
-    MASS_RANGE = (0.1, 1.0)
-    FRICTION_RANGE = (0.1, 1.0)
+    MASS_RANGE = (0.1, 0.5)
+    FRICTION_RANGE = (0.5, 1.0)
 
     @staticmethod
     def sample_random_object_properties(object_name, mass=None, friction=None, com=None):
@@ -912,7 +920,7 @@ class GraspableBodySampler:
             tmp_body,
             show_pybullet=False,
         )
-        print(f'Object watertight:', sim_client.mesh.is_watertight)
+        # print(f'Object watertight:', sim_client.mesh.is_watertight)
         # if not sim_client.mesh.is_watertight:
         #     import IPython
         #     IPython.embed()
@@ -960,9 +968,9 @@ def main_serial():
     # objects_names = ['ShapeNet::StandingClock_cca5dddf86affe9a23522985f649a9ae']
     # objects_names = ['Primitive::Box_970355850778123776']
     objects_names = ['ShapeNet::DrinkBottle_c0b6be0fb83b237f504721639e19f609']
-    objects_names = ['ShapeNet::FloorLamp_9f47557e429f4734c2d56e1f87f4dc83']
+    objects_names = ['ShapeNet::CellPhone_d2023b9e8284e50f719849e3a9efc095']
 
-    objects_names = ['Primitive::Box_553711050557875456']
+    #objects_names = ['Primitive::Box_1869537104388299264']
 
     object_name = random.choice(objects_names)
     # graspable_body = GraspableBody(
@@ -979,8 +987,8 @@ def main_serial():
     graspable_body = GraspableBody(
         object_name=object_name,
         # com=(-0.1386, 0.0019, -0.0419),
-        com=(0., 0., -0.05),
-        mass=1.0, friction=1.0
+        com=(-0.00971289, -0.0834559 ,  0.15185642),
+        mass=0.179, friction=0.991
     )  # mass=0.908
     # graspable_body = GraspableBody(
     #     object_name=object_name,
@@ -1091,7 +1099,7 @@ def vary_object_properties():
 
     for lx in range(0, n_samples):
         print('Sampling %d/%d...' % (lx, n_samples))
-        grasp = grasp_sampler.sample_grasp(force=20, show_trimesh=False)
+        grasp = grasp_sampler.sample_grasp(force=5, show_trimesh=False)
         grasps.append(grasp)
     grasp_sampler.disconnect()
 
