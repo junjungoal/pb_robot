@@ -3,6 +3,7 @@ import queue
 import random
 import shutil
 import sys
+import gc
 from collections import namedtuple
 
 import numpy as np
@@ -105,6 +106,10 @@ class GraspSimulationClient:
         self.show_pybullet = show_pybullet
 
         self.hand, self.hand_control = self._load_hand()
+
+    def __del__(self):
+        del self.mesh
+        gc.collect()
 
     def _get_object_urdf(self, graspable_body):
         """ First copy the YCB Object to a new folder then modify its URDF to include
@@ -527,7 +532,7 @@ class GraspStabilityChecker:
 
             init_pose = self.sim_client.pb_get_pose()
             self.sim_client.pb_set_gravity(gravity_vectors[gx, :])
-            for tx in range(100):
+            for tx in range(120):
                 if self.show_pybullet and tx % 10 == 0:
                     self.show_contact_points()
                     # input('Next?')
@@ -781,7 +786,6 @@ class GraspSampler:
         scene.show()
 
     def sample_grasp(self, force, show_trimesh=False, max_attempts=100):
-
         while True:
             tm_point1, tm_point2, antipodal_angle = self._sample_antipodal_points_rays()
             if tm_point1 is None:
@@ -893,8 +897,8 @@ class GraspableBodySampler:
     COM is sampled in % of containing bounding box and rejection sampling is
     used to make sure it lies within the convex-hull of the mesh.
     """
-    MASS_RANGE = (0.1, 0.5)
-    FRICTION_RANGE = (0.5, 1.0)
+    MASS_RANGE = (0.1, 0.3)
+    FRICTION_RANGE = (0.1, 0.3)
 
     @staticmethod
     def sample_random_object_properties(object_name, mass=None, friction=None, com=None):
@@ -969,6 +973,7 @@ def main_serial():
     # objects_names = ['Primitive::Box_970355850778123776']
     objects_names = ['ShapeNet::DrinkBottle_c0b6be0fb83b237f504721639e19f609']
     objects_names = ['ShapeNet::CellPhone_d2023b9e8284e50f719849e3a9efc095']
+    objects_names = ['ShapeNet::EndTable_53bc49f45214d8d6ea73a64ae4344bc3']
 
     #objects_names = ['Primitive::Box_1869537104388299264']
 
@@ -987,8 +992,8 @@ def main_serial():
     graspable_body = GraspableBody(
         object_name=object_name,
         # com=(-0.1386, 0.0019, -0.0419),
-        com=(-0.00971289, -0.0834559 ,  0.15185642),
-        mass=0.179, friction=0.991
+        com=(0.08869307, -0.14644556, -0.09242484),
+        mass=0.114, friction=0.163
     )  # mass=0.908
     # graspable_body = GraspableBody(
     #     object_name=object_name,
