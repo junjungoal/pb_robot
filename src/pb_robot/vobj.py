@@ -111,6 +111,8 @@ class JointSpacePath(object):
         self.manip.ExecutePositionPath(self.path, timestep=timestep)
     def execute(self, realRobot=None, obstacles=[]):
         print('Setting speed:', self.speed)
+        import pdb
+        pdb.set_trace()
         realRobot.set_joint_position_speed(self.speed)
         dictPath = [realRobot.convertToDict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)

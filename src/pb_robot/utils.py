@@ -365,7 +365,7 @@ class LockRenderer(Saver):
         if self.state != CLIENTS[self.client]:
             set_renderer(enable=self.state)
 
-def connect(use_gui=True, shadows=True):
+def connect(use_gui=True, shadows=True, enable_preview=False):
     # Shared Memory: execute the physics simulation and rendering in a separate process
     # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/vrminitaur.py#L7
     # make sure to compile pybullet with PYBULLET_USE_NUMPY enabled
@@ -385,7 +385,7 @@ def connect(use_gui=True, shadows=True):
     if use_gui:
         # p.COV_ENABLE_PLANAR_REFLECTION
         # p.COV_ENABLE_SINGLE_STEP_RENDERING
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI, False, physicsClientId=sim_id)
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, enable_preview, physicsClientId=sim_id)
         p.configureDebugVisualizer(p.COV_ENABLE_TINY_RENDERER, True, physicsClientId=sim_id)
         p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, True, physicsClientId=sim_id)
         p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, True, physicsClientId=sim_id)

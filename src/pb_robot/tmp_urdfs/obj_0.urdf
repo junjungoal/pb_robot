@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<robot  name="obj_0" >
+ <link  name="obj_0" >
+  <inertial >
+   <origin  rpy="0 0 0"  xyz="0.006 -0.021 0.0" />
+   <mass  value="0.116" />
+   <inertia  ixz="0"  iyy="0.001"  izz="0.001"  ixx="0.001"  iyz="0"  ixy="0" />
+  </inertial>
+  <collision >
+   <origin  rpy="0 0 0"  xyz="0 0 0" />
+   <geometry >
+    <box  size="0.05 0.13 0.06" />
+   </geometry>
+  </collision>
+  <visual >
+   <origin  rpy="0 0 0"  xyz="0 0 0" />
+   <geometry >
+    <box  size="0.05 0.13 0.06" />
+   </geometry>
+   <material  name="color" >
+    <color  rgba="0.16552351110118324 0.716607778980477 0.9519708103941685 1.0" />
+   </material>
+  </visual>
+ </link>
+</robot>

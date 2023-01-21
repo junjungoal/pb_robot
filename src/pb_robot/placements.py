@@ -7,7 +7,7 @@ CIRCULAR_LIMITS = -PI, PI
 def stable_z_on_aabb(body, aabb):
     center, extent = pb_robot.aabb.get_center_extent(body)
     _, upper = aabb
-    return (upper + extent/2 + (body.get_base_link_point() - center))[2]
+    return (upper + extent/2 + (body.get_point() - center))[2]
 
 def stable_z(body, surface, surface_link=None):
     return stable_z_on_aabb(body, pb_robot.aabb.get_aabb(surface, link=surface_link))

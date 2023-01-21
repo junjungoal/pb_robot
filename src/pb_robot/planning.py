@@ -133,9 +133,11 @@ def waypoints_from_path(path, tolerance=1e-3):
 def get_moving_links(body, joints):
     moving_links = set()
     for joint in joints:
-        link = joint.child_link_from_joint()
+        # link = joint.child_link_from_joint()
+        link = body.child_link_from_joint(joint)
         if link not in moving_links:
-            moving_links.update(link.get_link_subtree())
+            linkType = pb_robot.link.Link(body, link.jointID)
+            moving_links.update(linkType.get_link_subtree())
     return list(moving_links)
 
 def get_moving_pairs(body, moving_joints):
@@ -160,7 +162,7 @@ def get_self_link_pairs(body, joints, disabled_collisions=set(), only_moving=Tru
         check_link_pairs.extend(get_moving_pairs(body, joints))
     else:
         check_link_pairs.extend(combinations(moving_links, 2))
-    check_link_pairs = list(filter(lambda pair: not pair.are_links_adjacent(), check_link_pairs))
+    check_link_pairs = list(filter(lambda pair: not body.are_links_adjacent(*pair), check_link_pairs))
     check_link_pairs = list(filter(lambda pair: (pair not in disabled_collisions) and
                                    (pair[::-1] not in disabled_collisions), check_link_pairs))
     return check_link_pairs
