@@ -111,10 +111,8 @@ class JointSpacePath(object):
         self.manip.ExecutePositionPath(self.path, timestep=timestep)
     def execute(self, realRobot=None, obstacles=[]):
         print('Setting speed:', self.speed)
-        import pdb
-        pdb.set_trace()
         realRobot.set_joint_position_speed(self.speed)
-        dictPath = [realRobot.convertToDict(q) for q in self.path]
+        dictPath = [realRobot.convert_to_joint_dict(q) for q in self.path]
         realRobot.execute_position_path(dictPath)
     def __repr__(self):
         return 'j_path{}'.format(id(self) % 1000)
@@ -237,7 +235,7 @@ class MoveToTouch(object):
                 if pose is None:
                     continue
 
-                start_q = realRobot.convertToList(realRobot.joint_angles())
+                start_q = list(realRobot.joint_angles().values())
                 result = self.recalculate_qs(start_q, pose, obstacles=obstacles)
                 if result is None:
                     continue
@@ -254,9 +252,9 @@ class MoveToTouch(object):
 
             print('[MoveToTouch]: Moving to corrected approach.')
             realRobot.set_joint_position_speed(0.2)
-            realRobot.move_to_joint_positions(realRobot.convertToDict(self.start))
+            realRobot.move_to_joint_positions(realRobot.convert_to_joint_dict(self.start))
         print('[MoveToTouch]: Moving to corrected grasp.')
-        realRobot.move_to_touch(realRobot.convertToDict(self.end))
+        realRobot.move_to_touch(realRobot.convert_to_joint_dict(self.end))
     def __repr__(self):
         return 'moveToTouch{}'.format(id(self) % 1000)
 
@@ -270,7 +268,7 @@ class MoveFromTouch(object):
         start = self.manip.GetJointValues()
         self.manip.ExecutePositionPath([start, self.end], timestep=timestep)
     def recompute_backoff(self, realRobot, obstacles):
-        curr_q = realRobot.convertToList(realRobot.joint_angles())
+        curr_q = list(realRobot.joint_angles().values())
         grasp_tform = self.manip.ComputeFK(curr_q)
         backoff_tform = ComputePrePose(grasp_tform, [0, 0, 0.1], 'global')
 
@@ -292,14 +290,14 @@ class MoveFromTouch(object):
             if path2 is None:
                 print(f'[MoveFromTouch]: Readjust trajectory invalid.')
                 continue
-            realRobot.move_from_touch(realRobot.convertToDict(backoff_q))
+            realRobot.move_from_touch(realRobot.convert_to_joint_dict(backoff_q))
             return
 
     def execute(self, realRobot=None, obstacles=[]):
         realRobot.set_joint_position_speed(self.speed)
         if self.use_wrist_camera:
             self.recompute_backoff(realRobot, obstacles)
-        realRobot.move_from_touch(realRobot.convertToDict(self.end))
+        realRobot.move_from_touch(realRobot.convert_to_joint_dict(self.end))
 
         # Check if grasp was missed by checking gripper opening distances
         if self.use_wrist_camera:
