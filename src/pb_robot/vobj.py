@@ -29,13 +29,18 @@ class RelativePose(object):
         return 'rp{}'.format(id(self) % 1000)
 
 class BodyGrasp(object):
-    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=40):
+    def __init__(self, body, grasp_objF, manip, r=0.0085, mu=None, N=15, width=0.02,
+                 epsilon_inner=0.005, epsilon_outer=0.005):
         self.body = body
         self.grasp_objF = grasp_objF #Tform
         self.manip = manip
+        self.width = width
         self.r = r
         self.mu = mu
         self.N = N
+        self.epsilon_inner = epsilon_inner
+        self.epsilon_outer = epsilon_outer
+
     def simulate(self, timestep, obstacles=[]):
         if self.body.get_name() in self.manip.grabbedObjects:
             # Object grabbed, need to release
@@ -51,7 +56,8 @@ class BodyGrasp(object):
         if hand_pose['panda_finger_joint1'] < 0.039: # open pose
             realRobot.hand.open()
         else:
-            realRobot.hand.grasp(0.02, self.N, epsilon_inner=0.1, epsilon_outer=0.1)
+            realRobot.hand.grasp(self.width, self.N, epsilon_inner=self.epsilon_inner,
+                                 epsilon_outer=self.epsilon_outer)
     def __repr__(self):
         return 'g{}'.format(id(self) % 1000)
 
@@ -96,7 +102,7 @@ class BodyWrench(object):
         return 'w{}'.format(id(self) % 1000)
 
 class JointSpacePath(object):
-    def __init__(self, manip, path, speed=0.6):
+    def __init__(self, manip, path, speed=0.3):
         self.manip = manip
         self.path = path
         self.speed = speed
@@ -259,7 +265,7 @@ class MoveToTouch(object):
         return 'moveToTouch{}'.format(id(self) % 1000)
 
 class MoveFromTouch(object):
-    def __init__(self, manip, end, speed=0.3, use_wrist_camera=False):
+    def __init__(self, manip, end, speed=0.1, use_wrist_camera=False):
         self.manip = manip
         self.end = end
         self.speed = speed

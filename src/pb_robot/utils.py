@@ -181,7 +181,7 @@ def get_model_info(body):
     key = (CLIENT, body)
     return INFO_FROM_BODY.get(key, None)
 
-def get_urdf_flags(cache=False, cylinder=False, use_mtl=False):
+def get_urdf_flags(cache=False, cylinder=False, use_mtl=False, use_inertia=False):
     # by default, Bullet disables self-collision
     # URDF_INITIALIZE_SAT_FEATURES
     # URDF_ENABLE_CACHED_GRAPHICS_SHAPES seems to help
@@ -194,12 +194,14 @@ def get_urdf_flags(cache=False, cylinder=False, use_mtl=False):
         flags |= p.URDF_USE_IMPLICIT_CYLINDER
     if use_mtl:
         flags |= p.URDF_USE_MATERIAL_COLORS_FROM_MTL
+    # if use_inertia:
+    #     flags |= p.URDF_USE_INERTIA_FROM_FILE
     return flags
 
 def load_pybullet(filename, fixed_base=False, scale=1., **kwargs):
     # fixed_base=False implies infinite base mass
     with LockRenderer():
-        if filename.endswith('.urdf'):
+        if filename.endswith('.urdf') or filename.endswith('.xacro'):
             flags = get_urdf_flags(**kwargs)
             body = p.loadURDF(filename, useFixedBase=fixed_base, flags=flags,
                               globalScaling=scale, physicsClientId=CLIENT)

@@ -32,6 +32,8 @@ def createBody(path, **kwargs):
     with pb_robot.utils.LockRenderer():
         body_id = pb_robot.utils.load_model(path, **kwargs)
     print(body_id)
+    if isinstance(body_id, tuple):
+        body_id = body_id[0]
     return Body(body_id, path)
 
 BodyInfo = namedtuple('BodyInfo', ['base_name', 'body_name'])

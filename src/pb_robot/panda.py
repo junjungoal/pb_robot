@@ -22,8 +22,8 @@ class Panda(pb_robot.body.Body):
     '''Create all the functions for controlling the Panda Robot arm'''
     def __init__(self):
         '''Generate the body and establish the other classes'''
-        self.urdf_file = 'models/franka_description/robots/panda_arm_hand.urdf'
-        #self.urdf_file = 'models/franka_description/robots/panda_arm.urdf'
+        # self.urdf_file = 'models/franka_description/robots/panda_arm.urdf'
+        self.urdf_file = 'models/franka_description/robots/panda/panda.urdf'
 
         with pb_robot.helper.HideOutput():
             with pb_robot.utils.LockRenderer():
